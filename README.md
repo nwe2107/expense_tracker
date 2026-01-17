@@ -18,6 +18,10 @@ A modern, feature-rich expense tracking application built with Flutter and Fireb
 - 💳 **Payment Methods** - Track expenses by payment type (cash, credit, debit, etc.)
 - 🔄 **Real-time Sync** - Cloud-based storage with instant updates
 - 🌍 **Multi-currency Support** - Built-in support for ILS (₪) with extensibility
+- 📸 **Receipt Photo Uploads** - Attach receipt images to expenses
+- 📤 **Export Data** - Generate CSV and PDF expense reports
+- 🌙 **Dark Mode** - Toggle light and dark themes
+- 🔁 **Recurring Expenses** - Automate monthly or yearly entries
 
 ---
 
@@ -143,6 +147,46 @@ Gain insights into your spending patterns with interactive charts.
 - 📊 **Monthly Bar Chart** - Yearly spending comparison by month
 - 📈 **Trend Analysis** - Identify spending patterns
 - 🗓️ **Date Range Selection** - View historical data
+
+---
+
+### 7. Receipt Photo Uploads
+
+Attach receipt images to keep proof of purchase with each expense.
+
+<div align="center">
+  <img src="demos/videos/upload-photo.gif" alt="Upload Receipt Demo" width="300"/>
+</div>
+
+---
+
+### 8. Export Data
+
+Generate CSV or PDF reports for sharing and archiving.
+
+<div align="center">
+  <img src="demos/videos/export-data.gif" alt="Export Data Demo" width="300"/>
+</div>
+
+---
+
+### 9. Dark Mode
+
+Switch between light and dark themes from settings.
+
+<div align="center">
+  <img src="demos/videos/dark-mode.gif" alt="Dark Mode Demo" width="300"/>
+</div>
+
+---
+
+### 10. Recurring Expenses
+
+Automatically add monthly or yearly expenses.
+
+<div align="center">
+  <img src="demos/videos/recurring-expenses.gif" alt="Recurring Expenses Demo" width="300"/>
+</div>
 
 ---
 
@@ -302,12 +346,9 @@ Each category is automatically assigned a color for easy visualization in charts
 
 ## 🔮 Upcoming Features
 
-- 📸 Receipt scanning and photo upload
 - 🔔 Budget alerts and notifications
-- 📤 Export data (CSV/PDF)
-- 🌙 Dark mode support
-- 🔄 Recurring expenses
 - 👥 Shared expenses with other users
+- 🧾 Receipt scanning (OCR)
 - 🌍 Multi-currency support expansion
 - 📈 More detailed analytics and trends
 
