@@ -19,6 +19,7 @@ A modern, feature-rich expense tracking application built with Flutter and Fireb
 - 🔄 **Real-time Sync** - Cloud-based storage with instant updates
 - 🌍 **Multi-currency Support** - Built-in support for ILS (₪) with extensibility
 - 📸 **Receipt Photo Uploads** - Attach receipt images to expenses
+- 🧾 **Receipt Scanning (OCR)** - Scan receipts to auto-fill fields
 - 📤 **Export Data** - Generate CSV and PDF expense reports
 - 🌙 **Dark Mode** - Toggle light and dark themes
 - 🔁 **Recurring Expenses** - Automate monthly or yearly entries
@@ -160,7 +161,17 @@ Attach receipt images to keep proof of purchase with each expense.
 
 ---
 
-### 8. Export Data
+### 8. Receipt Scanning (OCR)
+
+Scan receipts and auto-fill key fields before saving.
+
+<div align="center">
+  <img src="demos/videos/OCR- scan.gif" alt="Receipt Scanning Demo" width="300"/>
+</div>
+
+---
+
+### 9. Export Data
 
 Generate CSV or PDF reports for sharing and archiving.
 
@@ -170,7 +181,7 @@ Generate CSV or PDF reports for sharing and archiving.
 
 ---
 
-### 9. Dark Mode
+### 10. Dark Mode
 
 Switch between light and dark themes from settings.
 
@@ -180,7 +191,7 @@ Switch between light and dark themes from settings.
 
 ---
 
-### 10. Recurring Expenses
+### 11. Recurring Expenses
 
 Automatically add monthly or yearly expenses.
 
@@ -348,7 +359,6 @@ Each category is automatically assigned a color for easy visualization in charts
 
 - 🔔 Budget alerts and notifications
 - 👥 Shared expenses with other users
-- 🧾 Receipt scanning (OCR)
 - 🌍 Multi-currency support expansion
 - 📈 More detailed analytics and trends
 
