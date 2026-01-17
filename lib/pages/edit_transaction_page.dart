@@ -9,11 +9,41 @@ import '../services/firestore_service.dart';
 import '../services/receipt_storage_service.dart';
 import '../widgets/category_picker.dart';
 
+class TransactionPrefill {
+  final String? note;
+  final double? amount;
+  final String? merchant;
+  final DateTime? date;
+  final String? categoryId;
+  final String? categoryName;
+  final String? paymentMethod;
+  final XFile? receiptFile;
+  final Uint8List? receiptBytes;
+
+  const TransactionPrefill({
+    this.note,
+    this.amount,
+    this.merchant,
+    this.date,
+    this.categoryId,
+    this.categoryName,
+    this.paymentMethod,
+    this.receiptFile,
+    this.receiptBytes,
+  });
+}
+
 class EditTransactionPage extends StatefulWidget {
   final String uid;
   final TransactionModel? existing;
+  final TransactionPrefill? prefill;
 
-  const EditTransactionPage({super.key, required this.uid, this.existing});
+  const EditTransactionPage({
+    super.key,
+    required this.uid,
+    this.existing,
+    this.prefill,
+  });
 
   @override
   State<EditTransactionPage> createState() => _EditTransactionPageState();
@@ -40,6 +70,7 @@ class _EditTransactionPageState extends State<EditTransactionPage> {
 
   DateTime _date = DateTime.now();
   String _categoryId = '';
+  String? _prefillCategoryName;
   String? _paymentMethod;
   bool _splitPurchase = false;
   bool _recurringEnabled = false;
@@ -57,18 +88,31 @@ class _EditTransactionPageState extends State<EditTransactionPage> {
     super.initState();
 
     final existing = widget.existing;
-    _descriptionController = TextEditingController(text: existing?.note ?? '');
-    _amountController = TextEditingController(
-      text: existing == null ? '' : existing.amount.toStringAsFixed(2),
-    );
-    _merchantController = TextEditingController(text: existing?.merchant ?? '');
+    final prefill = existing == null ? widget.prefill : null;
 
-    _date = existing?.date ?? DateTime.now();
-    _categoryId = existing?.categoryId ?? '';
+    _descriptionController = TextEditingController(
+      text: existing?.note ?? prefill?.note ?? '',
+    );
+    _amountController = TextEditingController(
+      text: existing != null
+          ? existing.amount.toStringAsFixed(2)
+          : prefill?.amount?.toStringAsFixed(2) ?? '',
+    );
+    _merchantController = TextEditingController(
+      text: existing?.merchant ?? prefill?.merchant ?? '',
+    );
+
+    _date = existing?.date ?? prefill?.date ?? DateTime.now();
+    _categoryId = existing?.categoryId ?? prefill?.categoryId ?? '';
+    _prefillCategoryName = prefill?.categoryName;
     final existingPaymentMethod = existing?.paymentMethod;
-    _paymentMethod = existingPaymentMethod != null && _paymentMethods.contains(existingPaymentMethod)
-        ? existingPaymentMethod
-        : null;
+    if (existingPaymentMethod != null && _paymentMethods.contains(existingPaymentMethod)) {
+      _paymentMethod = existingPaymentMethod;
+    } else {
+      final prefillPayment = prefill?.paymentMethod;
+      _paymentMethod =
+          prefillPayment != null && _paymentMethods.contains(prefillPayment) ? prefillPayment : null;
+    }
     _splitPurchase = existing?.splitPurchase ?? false;
     _recurringEnabled = existing?.recurringEnabled ?? false;
     if (existing?.recurringParentId != null) {
@@ -76,6 +120,10 @@ class _EditTransactionPageState extends State<EditTransactionPage> {
     }
     _recurringInterval = _recurringEnabled ? existing?.recurringInterval : null;
     _receiptUrl = existing?.receiptUrl;
+    if (existing == null) {
+      _receiptFile = prefill?.receiptFile;
+      _receiptBytes = prefill?.receiptBytes;
+    }
   }
 
   @override
@@ -193,6 +241,10 @@ class _EditTransactionPageState extends State<EditTransactionPage> {
   String _formatDateTime(DateTime dt) {
     String two(int v) => v.toString().padLeft(2, '0');
     return '${dt.year}-${two(dt.month)}-${two(dt.day)} ${two(dt.hour)}:${two(dt.minute)}';
+  }
+
+  String _normalizeCategoryName(String name) {
+    return name.trim().toLowerCase().replaceAll(RegExp(r'\s+'), ' ');
   }
 
   Future<void> _save() async {
@@ -337,7 +389,22 @@ class _EditTransactionPageState extends State<EditTransactionPage> {
           builder: (context, snapshot) {
             final categories = snapshot.data ?? const <CategoryModel>[];
             if (_categoryId.isEmpty && categories.isNotEmpty) {
-              _categoryId = categories.first.id;
+              if (_prefillCategoryName != null) {
+                final desired = _normalizeCategoryName(_prefillCategoryName!);
+                CategoryModel? match;
+                for (final c in categories) {
+                  final normalized = _normalizeCategoryName(c.name);
+                  if (normalized == desired || normalized.contains(desired)) {
+                    match = c;
+                    break;
+                  }
+                }
+                if (match != null) {
+                  _categoryId = match.id;
+                }
+              } else {
+                _categoryId = categories.first.id;
+              }
             }
 
             return SingleChildScrollView(

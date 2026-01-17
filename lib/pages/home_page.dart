@@ -5,6 +5,7 @@ import '../models/category_model.dart';
 import '../models/transaction_model.dart';
 import '../services/firestore_service.dart';
 import 'categories_page.dart';
+import 'add_expense_options_page.dart';
 import 'edit_transaction_page.dart';
 import 'reports_page.dart';
 import 'settings_page.dart';
@@ -126,7 +127,7 @@ class _HomePageState extends State<HomePage> {
                     onPressed: () {
                       Navigator.of(context).push(
                         MaterialPageRoute(
-                          builder: (_) => EditTransactionPage(uid: user.uid),
+                          builder: (_) => AddExpenseOptionsPage(uid: user.uid),
                         ),
                       );
                     },
