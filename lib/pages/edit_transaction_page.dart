@@ -371,6 +371,7 @@ class _EditTransactionPageState extends State<EditTransactionPage> {
                     ),
                     const SizedBox(height: 12),
                     CategoryPicker(
+                      uid: widget.uid,
                       categories: categories,
                       value: _categoryId.isEmpty ? null : _categoryId,
                       enabled: !_saving && categories.isNotEmpty,
