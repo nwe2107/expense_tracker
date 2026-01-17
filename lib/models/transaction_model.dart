@@ -10,6 +10,7 @@ class TransactionModel {
   final String? merchant;
   final String? paymentMethod;
   final String? note;
+  final String? receiptUrl;
   final bool splitPurchase;
   final bool recurringEnabled;
   final String? recurringInterval;
@@ -26,6 +27,7 @@ class TransactionModel {
     this.merchant,
     this.paymentMethod,
     this.note,
+    this.receiptUrl,
     this.splitPurchase = false,
     this.recurringEnabled = false,
     this.recurringInterval,
@@ -43,6 +45,7 @@ class TransactionModel {
       if (paymentMethod != null && paymentMethod!.trim().isNotEmpty)
         'paymentMethod': paymentMethod,
       if (note != null && note!.trim().isNotEmpty) 'note': note,
+      if (receiptUrl != null && receiptUrl!.trim().isNotEmpty) 'receiptUrl': receiptUrl,
       if (splitPurchase) 'splitPurchase': true,
       if (recurringEnabled) 'recurringEnabled': true,
       if (recurringInterval != null) 'recurringInterval': recurringInterval,
@@ -68,6 +71,7 @@ class TransactionModel {
       merchant: data['merchant'] as String?,
       paymentMethod: data['paymentMethod'] as String?,
       note: data['note'] as String?,
+      receiptUrl: data['receiptUrl'] as String?,
       splitPurchase: (data['splitPurchase'] as bool?) ?? false,
       recurringEnabled: (data['recurringEnabled'] as bool?) ?? false,
       recurringInterval: data['recurringInterval'] as String?,
@@ -87,6 +91,7 @@ class TransactionModel {
     String? merchant,
     String? paymentMethod,
     String? note,
+    String? receiptUrl,
     bool? splitPurchase,
     bool? recurringEnabled,
     String? recurringInterval,
@@ -103,6 +108,7 @@ class TransactionModel {
       merchant: merchant ?? this.merchant,
       paymentMethod: paymentMethod ?? this.paymentMethod,
       note: note ?? this.note,
+      receiptUrl: receiptUrl ?? this.receiptUrl,
       splitPurchase: splitPurchase ?? this.splitPurchase,
       recurringEnabled: recurringEnabled ?? this.recurringEnabled,
       recurringInterval: recurringInterval ?? this.recurringInterval,

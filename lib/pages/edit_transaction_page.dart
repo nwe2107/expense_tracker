@@ -1,8 +1,12 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../models/category_model.dart';
 import '../models/transaction_model.dart';
 import '../services/firestore_service.dart';
+import '../services/receipt_storage_service.dart';
 import '../widgets/category_picker.dart';
 
 class EditTransactionPage extends StatefulWidget {
@@ -18,6 +22,8 @@ class EditTransactionPage extends StatefulWidget {
 class _EditTransactionPageState extends State<EditTransactionPage> {
   final _formKey = GlobalKey<FormState>();
   final FirestoreService _firestore = FirestoreService();
+  final ReceiptStorageService _receiptStorage = ReceiptStorageService();
+  final ImagePicker _imagePicker = ImagePicker();
 
   static const List<String> _paymentMethods = [
     'cash',
@@ -38,6 +44,9 @@ class _EditTransactionPageState extends State<EditTransactionPage> {
   bool _splitPurchase = false;
   bool _recurringEnabled = false;
   String? _recurringInterval;
+  String? _receiptUrl;
+  XFile? _receiptFile;
+  Uint8List? _receiptBytes;
 
   bool _saving = false;
 
@@ -66,6 +75,7 @@ class _EditTransactionPageState extends State<EditTransactionPage> {
       _recurringEnabled = false;
     }
     _recurringInterval = _recurringEnabled ? existing?.recurringInterval : null;
+    _receiptUrl = existing?.receiptUrl;
   }
 
   @override
@@ -74,6 +84,82 @@ class _EditTransactionPageState extends State<EditTransactionPage> {
     _amountController.dispose();
     _merchantController.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickReceipt(ImageSource source) async {
+    final picked = await _imagePicker.pickImage(
+      source: source,
+      maxWidth: 2000,
+      imageQuality: 85,
+    );
+    if (picked == null) return;
+    final bytes = await picked.readAsBytes();
+    if (!mounted) return;
+    setState(() {
+      _receiptFile = picked;
+      _receiptBytes = bytes;
+    });
+  }
+
+  Future<void> _chooseReceiptSource() async {
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.camera_alt_outlined),
+              title: const Text('Take photo'),
+              onTap: () => Navigator.of(context).pop(ImageSource.camera),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined),
+              title: const Text('Choose from library'),
+              onTap: () => Navigator.of(context).pop(ImageSource.gallery),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (source == null) return;
+    await _pickReceipt(source);
+  }
+
+  Future<void> _previewReceipt(String url) async {
+    await showDialog<void>(
+      context: context,
+      builder: (context) => Dialog(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              alignment: Alignment.centerLeft,
+              child: const Text('Receipt'),
+            ),
+            Flexible(
+              child: Image.network(
+                url,
+                fit: BoxFit.contain,
+                errorBuilder: (context, error, stackTrace) {
+                  return const Padding(
+                    padding: EdgeInsets.all(16),
+                    child: Text('Unable to load receipt image.'),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Close'),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _pickDateTime() async {
@@ -139,8 +225,23 @@ class _EditTransactionPageState extends State<EditTransactionPage> {
 
     setState(() => _saving = true);
 
+    final transactionId =
+        widget.existing?.id ?? _firestore.newTransactionId(widget.uid);
+    var receiptUrl = _receiptUrl;
+
+    if (_receiptFile != null) {
+      final bytes = _receiptBytes ?? await _receiptFile!.readAsBytes();
+      receiptUrl = await _receiptStorage.uploadReceipt(
+        uid: widget.uid,
+        transactionId: transactionId,
+        bytes: bytes,
+        fileName: _receiptFile!.name,
+        mimeType: _receiptFile!.mimeType,
+      );
+    }
+
     final tx = TransactionModel(
-      id: widget.existing?.id ?? '',
+      id: transactionId,
       date: _date,
       createdAt: widget.existing?.createdAt,
       amount: amount,
@@ -149,6 +250,7 @@ class _EditTransactionPageState extends State<EditTransactionPage> {
       note: _descriptionController.text.trim(),
       merchant: _merchantController.text.trim(),
       paymentMethod: _paymentMethod,
+      receiptUrl: receiptUrl,
       splitPurchase: _splitPurchase,
       recurringEnabled: _recurringEnabled,
       recurringInterval: _recurringEnabled ? _recurringInterval : null,
@@ -160,7 +262,7 @@ class _EditTransactionPageState extends State<EditTransactionPage> {
       if (_isEditMode) {
         await _firestore.updateTransaction(widget.uid, tx.id, tx);
       } else {
-        await _firestore.addTransaction(widget.uid, tx);
+        await _firestore.addTransactionWithId(widget.uid, tx.id, tx);
       }
       if (_recurringEnabled) {
         await _firestore.ensureRecurringTransactions(widget.uid);
@@ -337,21 +439,63 @@ class _EditTransactionPageState extends State<EditTransactionPage> {
                     ListTile(
                       contentPadding: EdgeInsets.zero,
                       title: const Text('Receipt (optional)'),
-                      subtitle: const Text('Scan / photo support coming soon.'),
+                      subtitle: Text(
+                        _receiptFile != null
+                            ? 'Receipt ready to upload.'
+                            : (_receiptUrl == null || _receiptUrl!.isEmpty)
+                                ? 'Add a receipt photo to keep with this expense.'
+                                : 'Receipt attached.',
+                      ),
                       trailing: OutlinedButton.icon(
+                        onPressed: _saving ? null : _chooseReceiptSource,
+                        icon: const Icon(Icons.camera_alt_outlined),
+                        label: Text(_receiptFile == null ? 'Add' : 'Replace'),
+                      ),
+                    ),
+                    if (_receiptBytes != null) ...[
+                      const SizedBox(height: 8),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: Image.memory(
+                          _receiptBytes!,
+                          height: 180,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                      TextButton.icon(
                         onPressed: _saving
                             ? null
                             : () {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Receipt scan/photo coming soon.'),
-                                  ),
-                                );
+                                setState(() {
+                                  _receiptFile = null;
+                                  _receiptBytes = null;
+                                });
                               },
-                        icon: const Icon(Icons.camera_alt_outlined),
-                        label: const Text('Add'),
+                        icon: const Icon(Icons.close),
+                        label: const Text('Clear selection'),
                       ),
-                    ),
+                    ] else if (_receiptUrl != null && _receiptUrl!.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: Image.network(
+                          _receiptUrl!,
+                          height: 180,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            return const Padding(
+                              padding: EdgeInsets.all(12),
+                              child: Text('Unable to load receipt preview.'),
+                            );
+                          },
+                        ),
+                      ),
+                      TextButton.icon(
+                        onPressed: _saving ? null : () => _previewReceipt(_receiptUrl!),
+                        icon: const Icon(Icons.open_in_full),
+                        label: const Text('View'),
+                      ),
+                    ],
                     const SizedBox(height: 12),
                     SwitchListTile.adaptive(
                       contentPadding: EdgeInsets.zero,

@@ -23,6 +23,8 @@ class FirestoreService {
   CollectionReference<Map<String, dynamic>> _transactionsRef(String uid) =>
       _userDoc(uid).collection('transactions');
 
+  String newTransactionId(String uid) => _transactionsRef(uid).doc().id;
+
   Stream<List<CategoryModel>> streamCategories(String uid) {
     return _categoriesRef(uid)
         .orderBy('name')
@@ -77,6 +79,13 @@ class FirestoreService {
   Future<void> addTransaction(String uid, TransactionModel tx) async {
     final doc = _transactionsRef(uid).doc();
     await doc.set({
+      ...tx.toMap(),
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  Future<void> addTransactionWithId(String uid, String id, TransactionModel tx) async {
+    await _transactionsRef(uid).doc(id).set({
       ...tx.toMap(),
       'createdAt': FieldValue.serverTimestamp(),
     });
