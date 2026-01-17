@@ -11,6 +11,10 @@ class TransactionModel {
   final String? paymentMethod;
   final String? note;
   final bool splitPurchase;
+  final bool recurringEnabled;
+  final String? recurringInterval;
+  final String? recurringParentId;
+  final DateTime? recurringLastDate;
 
   const TransactionModel({
     required this.id,
@@ -23,6 +27,10 @@ class TransactionModel {
     this.paymentMethod,
     this.note,
     this.splitPurchase = false,
+    this.recurringEnabled = false,
+    this.recurringInterval,
+    this.recurringParentId,
+    this.recurringLastDate,
   });
 
   Map<String, dynamic> toMap() {
@@ -36,6 +44,11 @@ class TransactionModel {
         'paymentMethod': paymentMethod,
       if (note != null && note!.trim().isNotEmpty) 'note': note,
       if (splitPurchase) 'splitPurchase': true,
+      if (recurringEnabled) 'recurringEnabled': true,
+      if (recurringInterval != null) 'recurringInterval': recurringInterval,
+      if (recurringParentId != null) 'recurringParentId': recurringParentId,
+      if (recurringEnabled && recurringLastDate != null)
+        'recurringLastDate': Timestamp.fromDate(recurringLastDate!),
     };
   }
 
@@ -43,6 +56,7 @@ class TransactionModel {
     final data = doc.data() ?? <String, dynamic>{};
     final dateTs = data['date'];
     final createdAtTs = data['createdAt'];
+    final recurringLastDateTs = data['recurringLastDate'];
 
     return TransactionModel(
       id: doc.id,
@@ -55,6 +69,11 @@ class TransactionModel {
       paymentMethod: data['paymentMethod'] as String?,
       note: data['note'] as String?,
       splitPurchase: (data['splitPurchase'] as bool?) ?? false,
+      recurringEnabled: (data['recurringEnabled'] as bool?) ?? false,
+      recurringInterval: data['recurringInterval'] as String?,
+      recurringParentId: data['recurringParentId'] as String?,
+      recurringLastDate:
+          recurringLastDateTs is Timestamp ? recurringLastDateTs.toDate() : null,
     );
   }
 
@@ -69,6 +88,10 @@ class TransactionModel {
     String? paymentMethod,
     String? note,
     bool? splitPurchase,
+    bool? recurringEnabled,
+    String? recurringInterval,
+    String? recurringParentId,
+    DateTime? recurringLastDate,
   }) {
     return TransactionModel(
       id: id ?? this.id,
@@ -81,6 +104,10 @@ class TransactionModel {
       paymentMethod: paymentMethod ?? this.paymentMethod,
       note: note ?? this.note,
       splitPurchase: splitPurchase ?? this.splitPurchase,
+      recurringEnabled: recurringEnabled ?? this.recurringEnabled,
+      recurringInterval: recurringInterval ?? this.recurringInterval,
+      recurringParentId: recurringParentId ?? this.recurringParentId,
+      recurringLastDate: recurringLastDate ?? this.recurringLastDate,
     );
   }
 }

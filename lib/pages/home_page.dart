@@ -26,6 +26,7 @@ class _HomePageState extends State<HomePage> {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid != null) {
       _firestore.ensureDefaultCategories(uid);
+      _firestore.ensureRecurringTransactions(uid);
     }
   }
 

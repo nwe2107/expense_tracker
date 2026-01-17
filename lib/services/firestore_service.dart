@@ -9,6 +9,7 @@ class FirestoreService {
   final FirebaseFirestore _db;
 
   static const int _defaultCategoriesVersion = 2;
+  static const _recurringIntervals = {'monthly', 'yearly'};
 
   FirestoreService({FirebaseFirestore? firestore})
       : _db = firestore ?? FirebaseFirestore.instance;
@@ -87,6 +88,76 @@ class FirestoreService {
 
   Future<void> deleteTransaction(String uid, String id) async {
     await _transactionsRef(uid).doc(id).delete();
+  }
+
+  Future<void> ensureRecurringTransactions(String uid) async {
+    final now = DateTime.now();
+    final templatesSnap =
+        await _transactionsRef(uid).where('recurringEnabled', isEqualTo: true).get();
+
+    for (final doc in templatesSnap.docs) {
+      final template = TransactionModel.fromDoc(doc);
+      if (template.recurringParentId != null) {
+        continue;
+      }
+      if (!_recurringIntervals.contains(template.recurringInterval)) {
+        continue;
+      }
+
+      var lastDate = template.recurringLastDate ?? template.date;
+
+      var nextDate = _nextRecurringDate(lastDate, template.recurringInterval!);
+      var generated = false;
+      while (!nextDate.isAfter(now)) {
+        final instance = template.copyWith(
+          id: '',
+          date: nextDate,
+          createdAt: null,
+          recurringEnabled: false,
+          recurringInterval: null,
+          recurringParentId: template.id,
+          recurringLastDate: null,
+        );
+        await addTransaction(uid, instance);
+        lastDate = nextDate;
+        nextDate = _nextRecurringDate(lastDate, template.recurringInterval!);
+        generated = true;
+      }
+
+      if (generated) {
+        await _transactionsRef(uid).doc(template.id).update({
+          'recurringLastDate': Timestamp.fromDate(lastDate),
+        });
+      }
+    }
+  }
+
+  DateTime _nextRecurringDate(DateTime from, String interval) {
+    switch (interval) {
+      case 'monthly':
+        return _addMonthsClamped(from, 1);
+      case 'yearly':
+        return _addMonthsClamped(from, 12);
+      default:
+        return _addMonthsClamped(from, 1);
+    }
+  }
+
+  DateTime _addMonthsClamped(DateTime from, int monthsToAdd) {
+    final year = from.year + ((from.month - 1 + monthsToAdd) ~/ 12);
+    final month = ((from.month - 1 + monthsToAdd) % 12) + 1;
+    final lastDay = DateTime(year, month + 1, 0).day;
+    final day = from.day > lastDay ? lastDay : from.day;
+    return DateTime(
+      year,
+      month,
+      day,
+      from.hour,
+      from.minute,
+      from.second,
+      from.millisecond,
+      from.microsecond,
+    );
   }
 
   Future<void> ensureDefaultCategories(String uid) async {

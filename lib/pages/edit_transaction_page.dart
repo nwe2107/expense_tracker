@@ -36,6 +36,8 @@ class _EditTransactionPageState extends State<EditTransactionPage> {
   String _categoryId = '';
   String? _paymentMethod;
   bool _splitPurchase = false;
+  bool _recurringEnabled = false;
+  String? _recurringInterval;
 
   bool _saving = false;
 
@@ -59,6 +61,11 @@ class _EditTransactionPageState extends State<EditTransactionPage> {
         ? existingPaymentMethod
         : null;
     _splitPurchase = existing?.splitPurchase ?? false;
+    _recurringEnabled = existing?.recurringEnabled ?? false;
+    if (existing?.recurringParentId != null) {
+      _recurringEnabled = false;
+    }
+    _recurringInterval = _recurringEnabled ? existing?.recurringInterval : null;
   }
 
   @override
@@ -123,6 +130,13 @@ class _EditTransactionPageState extends State<EditTransactionPage> {
       return;
     }
 
+    if (_recurringEnabled && _recurringInterval == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select a recurring interval.')),
+      );
+      return;
+    }
+
     setState(() => _saving = true);
 
     final tx = TransactionModel(
@@ -136,6 +150,10 @@ class _EditTransactionPageState extends State<EditTransactionPage> {
       merchant: _merchantController.text.trim(),
       paymentMethod: _paymentMethod,
       splitPurchase: _splitPurchase,
+      recurringEnabled: _recurringEnabled,
+      recurringInterval: _recurringEnabled ? _recurringInterval : null,
+      recurringParentId: widget.existing?.recurringParentId,
+      recurringLastDate: widget.existing?.recurringLastDate,
     );
 
     try {
@@ -143,6 +161,9 @@ class _EditTransactionPageState extends State<EditTransactionPage> {
         await _firestore.updateTransaction(widget.uid, tx.id, tx);
       } else {
         await _firestore.addTransaction(widget.uid, tx);
+      }
+      if (_recurringEnabled) {
+        await _firestore.ensureRecurringTransactions(widget.uid);
       }
       if (!mounted) return;
       Navigator.of(context).pop();
@@ -331,6 +352,45 @@ class _EditTransactionPageState extends State<EditTransactionPage> {
                         label: const Text('Add'),
                       ),
                     ),
+                    const SizedBox(height: 12),
+                    SwitchListTile.adaptive(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Recurring expense? (optional)'),
+                      subtitle: const Text('Automatically add future expenses.'),
+                      value: _recurringEnabled,
+                      onChanged: _saving
+                          ? null
+                          : (value) {
+                              setState(() {
+                                _recurringEnabled = value;
+                                if (_recurringEnabled) {
+                                  _recurringInterval ??= 'monthly';
+                                } else {
+                                  _recurringInterval = null;
+                                }
+                              });
+                            },
+                    ),
+                    if (_recurringEnabled) ...[
+                      const SizedBox(height: 12),
+                      DropdownButtonFormField<String>(
+                        key: ValueKey(_recurringInterval ?? ''),
+                        initialValue: _recurringInterval,
+                        items: const [
+                          DropdownMenuItem(value: 'monthly', child: Text('Monthly')),
+                          DropdownMenuItem(value: 'yearly', child: Text('Yearly')),
+                        ],
+                        onChanged: _saving
+                            ? null
+                            : (value) {
+                                setState(() => _recurringInterval = value);
+                              },
+                        decoration: const InputDecoration(
+                          labelText: 'Recurring interval',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 12),
                     SwitchListTile.adaptive(
                       contentPadding: EdgeInsets.zero,
