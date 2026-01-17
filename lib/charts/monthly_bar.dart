@@ -17,6 +17,7 @@ class MonthlyBar extends StatelessWidget {
       return const SizedBox.shrink();
     }
 
+    final theme = Theme.of(context);
     final maxY = values.fold<double>(
       0,
       (prev, v) => v > prev ? v : prev,
@@ -37,7 +38,7 @@ class MonthlyBar extends StatelessWidget {
                 final label = labels[group.x.toInt()];
                 return BarTooltipItem(
                   '$label\n₪ ${rod.toY.toStringAsFixed(2)}',
-                  const TextStyle(color: Colors.white),
+                  TextStyle(color: theme.colorScheme.onSurface),
                 );
               },
             ),
@@ -57,7 +58,7 @@ class MonthlyBar extends StatelessWidget {
                   if (value == 0) return const SizedBox.shrink();
                   return Text(
                     value.toStringAsFixed(0),
-                    style: Theme.of(context).textTheme.bodySmall,
+                    style: theme.textTheme.bodySmall,
                   );
                 },
               ),
@@ -73,7 +74,7 @@ class MonthlyBar extends StatelessWidget {
                     axisSide: meta.axisSide,
                     child: Text(
                       labels[idx],
-                      style: Theme.of(context).textTheme.bodySmall,
+                      style: theme.textTheme.bodySmall,
                     ),
                   );
                 },
@@ -88,7 +89,7 @@ class MonthlyBar extends StatelessWidget {
                   toY: values[i],
                   width: 14,
                   borderRadius: const BorderRadius.all(Radius.circular(6)),
-                  color: Theme.of(context).colorScheme.primary,
+                  color: theme.colorScheme.primary,
                 ),
               ],
             );

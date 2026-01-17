@@ -7,6 +7,7 @@ import '../services/firestore_service.dart';
 import 'categories_page.dart';
 import 'edit_transaction_page.dart';
 import 'reports_page.dart';
+import 'settings_page.dart';
 import '../widgets/transaction_tile.dart';
 
 class HomePage extends StatefulWidget {
@@ -56,6 +57,21 @@ class _HomePageState extends State<HomePage> {
 
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          tooltip: 'Settings',
+          icon: CircleAvatar(
+            backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+            child: Icon(
+              Icons.person,
+              color: Theme.of(context).colorScheme.onPrimaryContainer,
+            ),
+          ),
+          onPressed: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const SettingsPage()),
+            );
+          },
+        ),
         title: const Text('Expense Tracker'),
         actions: [
           IconButton(
