@@ -8,7 +8,7 @@ import '../models/transaction_model.dart';
 class FirestoreService {
   final FirebaseFirestore _db;
 
-  static const int _defaultCategoriesVersion = 2;
+  static const int _defaultCategoriesVersion = 3;
   static const _recurringIntervals = {'monthly', 'yearly'};
 
   FirestoreService({FirebaseFirestore? firestore})
@@ -203,41 +203,77 @@ class FirestoreService {
     final currentVersion = (userData?['defaultCategoriesVersion'] as num?)?.toInt() ?? 0;
     if (currentVersion >= _defaultCategoriesVersion) return;
 
-    final defaultNames = <String>[
-      'שכר דירה וארנונה',
-      'תחבורה ציבורית',
-      'הוצאות רפואיות',
-      'מצרכי מזון',
-      'מצרכים זבל',
-      'טיפוח עצמי',
-      'חשבון חשמל',
-      'חשבון אינטרנט',
-      'חבילת סלולרי',
-      'חשבון גז',
-      'חשבון מים',
-      'קנסות',
-      'דוחות תנועה',
-      'מיסים אחרים',
-      'כלים וחומרי עבודה',
-      'קורסים',
-      'מוצרי חיות מחמד',
-      'מנויים לשירותים אינטרנטיים',
-      'אוכל חיות',
-      'הוצאות על הרכב',
-      'סרטים/הופעות/ספרים',
-      'חניה',
-      'טבק /אלכוהול',
-      'יציאת בילוי',
-      'ביגוד ותכשיטים',
-      'ריהוט',
-      'מונית',
-      'מוצרי חשמל וגאדג׳טים',
-      'מתנות/תרומות',
-      'אוכל במסעדה',
-      'אוכל מהיר',
-      'שונות',
-      'עמלות בנק וכספומטים',
+    final defaultCategories = <({String name, String icon})>[
+      (name: 'שכר דירה וארנונה', icon: '🏠'),
+      (name: 'תחבורה ציבורית', icon: '🚌'),
+      (name: 'הוצאות רפואיות', icon: '🏥'),
+      (name: 'מצרכי מזון', icon: '🛒'),
+      (name: 'מצרכים זבל', icon: '🍟'),
+      (name: 'טיפוח עצמי', icon: '💅'),
+      (name: 'חשבון חשמל', icon: '⚡'),
+      (name: 'חשבון אינטרנט', icon: '📶'),
+      (name: 'חבילת סלולרי', icon: '📲'),
+      (name: 'חשבון גז', icon: '🔥'),
+      (name: 'חשבון מים', icon: '💧'),
+      (name: 'קנסות', icon: '⚠️'),
+      (name: 'דוחות תנועה', icon: '🚔'),
+      (name: 'מיסים אחרים', icon: '🧾'),
+      (name: 'כלים וחומרי עבודה', icon: '🛠️'),
+      (name: 'קורסים', icon: '🎓'),
+      (name: 'מוצרי חיות מחמד', icon: '🐾'),
+      (name: 'מנויים לשירותים אינטרנטיים', icon: '💻'),
+      (name: 'אוכל חיות', icon: '🐶'),
+      (name: 'הוצאות על הרכב', icon: '🚗'),
+      (name: 'סרטים/הופעות/ספרים', icon: '🎬'),
+      (name: 'חניה', icon: '🅿️'),
+      (name: 'טבק /אלכוהול', icon: '🚬'),
+      (name: 'יציאת בילוי', icon: '🎉'),
+      (name: 'ביגוד ותכשיטים', icon: '💎👖'),
+      (name: 'ריהוט', icon: '🛋️'),
+      (name: 'מונית', icon: '🚕'),
+      (name: 'מוצרי חשמל וגאדג׳טים', icon: '📱'),
+      (name: 'מתנות/תרומות', icon: '🎁'),
+      (name: 'אוכל במסעדה', icon: '🍽️'),
+      (name: 'אוכל מהיר', icon: '🍔'),
+      (name: 'שונות', icon: '🔀'),
+      (name: 'עמלות בנק וכספומטים', icon: '🏦'),
     ];
+    final legacyEnglishDefaults = <String>{
+      'Rent',
+      'Rent & Utilities',
+      'Public Transport',
+      'Medical',
+      'Groceries',
+      'Junk Food',
+      'Self Care',
+      'Electricity',
+      'Internet',
+      'Mobile Plan',
+      'Gas',
+      'Water',
+      'Fines',
+      'Traffic Tickets',
+      'Other Taxes',
+      'Tools & Materials',
+      'Courses',
+      'Pet Supplies',
+      'Online Subscriptions',
+      'Pet Food',
+      'Car Expenses',
+      'Movies/Shows/Books',
+      'Parking',
+      'Tobacco/Alcohol',
+      'Night Out',
+      'Clothing & Jewelry',
+      'Furniture',
+      'Taxi',
+      'Electronics & Gadgets',
+      'Gifts/Donations',
+      'Restaurant Food',
+      'Fast Food',
+      'Misc',
+      'Bank/ATM Fees',
+    };
 
     String categoryIdFromName(String name) {
       final out = StringBuffer();
@@ -270,17 +306,53 @@ class FirestoreService {
     }
 
     final existing = await _categoriesRef(uid).get();
-    final existingIds = existing.docs.map((d) => d.id).toSet();
+    final existingById = {
+      for (final doc in existing.docs) doc.id: doc.data(),
+    };
+    final legacyEnglishIds = {
+      for (final name in legacyEnglishDefaults) categoryIdFromName(name),
+    };
 
     final batch = _db.batch();
-    for (var i = 0; i < defaultNames.length; i++) {
-      final name = defaultNames[i];
-      final id = categoryIdFromName(name);
-      if (existingIds.contains(id)) continue;
-      batch.set(
-        _categoriesRef(uid).doc(id),
-        CategoryModel(id: id, name: name, order: i).toMap(),
-      );
+    for (final entry in existingById.entries) {
+      final name = entry.value['name'] as String?;
+      final order = entry.value['order'];
+      if (order == null) continue;
+      if (legacyEnglishIds.contains(entry.key) || legacyEnglishDefaults.contains(name)) {
+        batch.delete(_categoriesRef(uid).doc(entry.key));
+      }
+    }
+
+    for (var i = 0; i < defaultCategories.length; i++) {
+      final category = defaultCategories[i];
+      final id = categoryIdFromName(category.name);
+      final existingData = existingById[id];
+      if (existingData == null) {
+        batch.set(
+          _categoriesRef(uid).doc(id),
+          CategoryModel(
+            id: id,
+            name: category.name,
+            icon: category.icon,
+            order: i,
+          ).toMap(),
+        );
+        continue;
+      }
+
+      final existingIcon = existingData['icon'] as String?;
+      final updateIcon = existingIcon == null || existingIcon.trim().isEmpty;
+      final updateOrder = (existingData['order'] as num?)?.toInt() != i;
+      if (updateIcon || updateOrder) {
+        batch.update(
+          _categoriesRef(uid).doc(id),
+          {
+            if (updateIcon) 'icon': category.icon,
+            if (updateOrder) 'order': i,
+            'name': category.name,
+          },
+        );
+      }
     }
 
     batch.set(
