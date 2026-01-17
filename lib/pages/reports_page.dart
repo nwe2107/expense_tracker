@@ -4,8 +4,14 @@ import '../charts/monthly_bar.dart';
 import '../charts/spending_pie.dart';
 import '../models/category_model.dart';
 import '../models/transaction_model.dart';
+import '../services/export_service.dart';
 import '../services/firestore_service.dart';
 import '../widgets/date_range_picker.dart';
+import 'package:share_plus/share_plus.dart';
+
+enum ExportPeriod { month, year, custom }
+
+enum ExportFormat { csv, pdf }
 
 class ReportsPage extends StatefulWidget {
   final String uid;
@@ -18,6 +24,7 @@ class ReportsPage extends StatefulWidget {
 
 class _ReportsPageState extends State<ReportsPage> {
   final FirestoreService _firestore = FirestoreService();
+  final ExportService _exportService = ExportService();
 
   DateTime _selectedMonth = DateTime(DateTime.now().year, DateTime.now().month, 1);
 
@@ -61,6 +68,228 @@ class _ReportsPageState extends State<ReportsPage> {
   DateTime _endOfYear(int year) =>
       DateTime(year + 1, 1, 1).subtract(const Duration(microseconds: 1));
 
+  DateTime _endOfDay(DateTime dt) =>
+      DateTime(dt.year, dt.month, dt.day, 23, 59, 59, 999, 999);
+
+  String _periodLabel(ExportPeriod period, DateTimeRange? customRange) {
+    switch (period) {
+      case ExportPeriod.month:
+        return '${_monthLabel(_selectedMonth.month)} ${_selectedMonth.year}';
+      case ExportPeriod.year:
+        return '${_selectedMonth.year}';
+      case ExportPeriod.custom:
+        final range = customRange;
+        if (range == null) return 'Custom period';
+        return _exportService.formatRangeLabel(
+          range.start,
+          _endOfDay(range.end),
+        );
+    }
+  }
+
+  String _formatLabel(ExportFormat format) =>
+      format == ExportFormat.csv ? 'CSV' : 'PDF';
+
+  Future<void> _showExportSheet(Map<String, CategoryModel> categoriesById) async {
+    ExportPeriod period = ExportPeriod.month;
+    ExportFormat format = ExportFormat.csv;
+    DateTimeRange? customRange;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                left: 16,
+                right: 16,
+                top: 12,
+                bottom: 16 + MediaQuery.of(context).viewInsets.bottom,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text('Export data', style: Theme.of(context).textTheme.titleMedium),
+                  const SizedBox(height: 12),
+                  Text('Period', style: Theme.of(context).textTheme.labelLarge),
+                  RadioListTile<ExportPeriod>(
+                    value: ExportPeriod.month,
+                    groupValue: period,
+                    onChanged: (value) => setState(() => period = value!),
+                    title: const Text('Current month'),
+                  ),
+                  RadioListTile<ExportPeriod>(
+                    value: ExportPeriod.year,
+                    groupValue: period,
+                    onChanged: (value) => setState(() => period = value!),
+                    title: const Text('Current year'),
+                  ),
+                  RadioListTile<ExportPeriod>(
+                    value: ExportPeriod.custom,
+                    groupValue: period,
+                    onChanged: (value) => setState(() => period = value!),
+                    title: const Text('Custom period'),
+                    subtitle: customRange == null
+                        ? const Text('Select start and end dates')
+                        : Text(
+                            _exportService.formatRangeLabel(
+                              customRange!.start,
+                              _endOfDay(customRange!.end),
+                            ),
+                          ),
+                    secondary: IconButton(
+                      tooltip: 'Pick date range',
+                      onPressed: () async {
+                        final picked = await showDateRangePicker(
+                          context: context,
+                          firstDate: DateTime(2000),
+                          lastDate: DateTime.now(),
+                          initialDateRange: customRange,
+                        );
+                        if (picked == null) return;
+                        setState(() {
+                          customRange = picked;
+                          period = ExportPeriod.custom;
+                        });
+                      },
+                      icon: const Icon(Icons.date_range),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text('Format', style: Theme.of(context).textTheme.labelLarge),
+                  RadioListTile<ExportFormat>(
+                    value: ExportFormat.csv,
+                    groupValue: format,
+                    onChanged: (value) => setState(() => format = value!),
+                    title: const Text('CSV'),
+                  ),
+                  RadioListTile<ExportFormat>(
+                    value: ExportFormat.pdf,
+                    groupValue: format,
+                    onChanged: (value) => setState(() => format = value!),
+                    title: const Text('PDF'),
+                  ),
+                  const SizedBox(height: 12),
+                  FilledButton.icon(
+                    onPressed: () async {
+                      if (period == ExportPeriod.custom && customRange == null) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Pick a custom period first.')),
+                        );
+                        return;
+                      }
+
+                      final label = _periodLabel(period, customRange);
+                      Navigator.of(context).pop();
+                      await _exportData(
+                        categoriesById,
+                        period,
+                        format,
+                        customRange,
+                        label,
+                      );
+                    },
+                    icon: const Icon(Icons.file_download),
+                    label: const Text('Export'),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _exportData(
+    Map<String, CategoryModel> categoriesById,
+    ExportPeriod period,
+    ExportFormat format,
+    DateTimeRange? customRange,
+    String periodLabel,
+  ) async {
+    DateTime start;
+    DateTime end;
+
+    switch (period) {
+      case ExportPeriod.month:
+        start = _startOfMonth(_selectedMonth);
+        end = _endOfMonth(_selectedMonth);
+        break;
+      case ExportPeriod.year:
+        start = _startOfYear(_selectedMonth.year);
+        end = _endOfYear(_selectedMonth.year);
+        break;
+      case ExportPeriod.custom:
+        final range = customRange!;
+        start = range.start;
+        end = _endOfDay(range.end);
+        break;
+    }
+
+    try {
+      final transactions = await _firestore.fetchTransactions(
+        widget.uid,
+        start: start,
+        end: end,
+      );
+
+      if (!mounted) return;
+
+      if (transactions.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('No transactions for $periodLabel.')),
+        );
+        return;
+      }
+
+      final extension = format == ExportFormat.csv ? 'csv' : 'pdf';
+      final fileName = _exportService.buildFileName(
+        start: start,
+        end: end,
+        extension: extension,
+      );
+
+      final bytes = format == ExportFormat.csv
+          ? await _exportService.buildCsv(
+              transactions: transactions,
+              categoriesById: categoriesById,
+              start: start,
+              end: end,
+            )
+          : await _exportService.buildPdf(
+              transactions: transactions,
+              categoriesById: categoriesById,
+              start: start,
+              end: end,
+            );
+
+      if (!mounted) return;
+
+      final subject = 'Expense report - $periodLabel';
+      await Share.shareXFiles(
+        [
+          XFile.fromData(
+            bytes,
+            name: fileName,
+            mimeType: format == ExportFormat.csv ? 'text/csv' : 'application/pdf',
+          ),
+        ],
+        subject: subject,
+        text: 'Expense report for $periodLabel (${_formatLabel(format)}).',
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Export failed: $e')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -94,6 +323,20 @@ class _ReportsPageState extends State<ReportsPage> {
                   },
                 ),
                 const SizedBox(height: 16),
+                Text('Export data', style: theme.textTheme.titleMedium),
+                const SizedBox(height: 8),
+                Card(
+                  child: ListTile(
+                    leading: const Icon(Icons.file_download),
+                    title: const Text('Export transactions'),
+                    subtitle: const Text('CSV or PDF for month, year, or custom range'),
+                    trailing: FilledButton.tonal(
+                      onPressed: () => _showExportSheet(byId),
+                      child: const Text('Export'),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
                 Text(
                   'Spending by category (${_monthLabel(_selectedMonth.month)} $selectedYear)',
                   style: theme.textTheme.titleMedium,

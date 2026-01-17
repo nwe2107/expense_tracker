@@ -76,6 +76,32 @@ class FirestoreService {
         .map((snap) => snap.docs.map(TransactionModel.fromDoc).toList());
   }
 
+  Future<List<TransactionModel>> fetchTransactions(
+    String uid, {
+    DateTime? start,
+    DateTime? end,
+  }) async {
+    Query<Map<String, dynamic>> query = _transactionsRef(uid);
+
+    if (start != null) {
+      query = query.where(
+        'date',
+        isGreaterThanOrEqualTo: Timestamp.fromDate(start),
+      );
+    }
+    if (end != null) {
+      query = query.where(
+        'date',
+        isLessThanOrEqualTo: Timestamp.fromDate(end),
+      );
+    }
+
+    query = query.orderBy('date', descending: true);
+
+    final snap = await query.get();
+    return snap.docs.map(TransactionModel.fromDoc).toList();
+  }
+
   Future<void> addTransaction(String uid, TransactionModel tx) async {
     final doc = _transactionsRef(uid).doc();
     await doc.set({
