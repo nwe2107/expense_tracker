@@ -5,7 +5,7 @@ class ExpensesTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Placeholder for the Expenses tab content.
+    // Placeholder until a dedicated Expenses list is added.
     return const Center(child: Text('Expenses'));
   }
 }

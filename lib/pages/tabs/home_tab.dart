@@ -6,7 +6,6 @@ import '../../models/transaction_model.dart';
 import '../../services/firestore_service.dart';
 import '../categories_page.dart';
 import '../edit_transaction_page.dart';
-import '../reports_page.dart';
 import '../../widgets/transaction_tile.dart';
 
 class HomeTab extends StatefulWidget {
@@ -104,17 +103,6 @@ class _HomeTabState extends State<HomeTab> {
                   },
                   icon: const Icon(Icons.category_outlined),
                   label: const Text('Categories'),
-                ),
-                FilledButton.tonalIcon(
-                  onPressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => ReportsPage(uid: user.uid),
-                      ),
-                    );
-                  },
-                  icon: const Icon(Icons.pie_chart_outline),
-                  label: const Text('Reports'),
                 ),
               ],
             ),

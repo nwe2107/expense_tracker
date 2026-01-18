@@ -5,7 +5,7 @@ class BudgetsTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Placeholder for the Budgets tab content.
+    // Placeholder until budgets are implemented.
     return const Center(child: Text('Budgets'));
   }
 }
