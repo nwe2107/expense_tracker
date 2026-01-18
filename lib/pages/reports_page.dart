@@ -6,6 +6,8 @@ import '../models/category_model.dart';
 import '../models/transaction_model.dart';
 import '../services/export_service.dart';
 import '../services/firestore_service.dart';
+import '../services/fx_rate_service.dart';
+import '../utils/currency_data.dart';
 import '../widgets/date_range_picker.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -32,6 +34,8 @@ class ReportsPage extends StatefulWidget {
 class _ReportsPageState extends State<ReportsPage> {
   final FirestoreService _firestore = FirestoreService();
   final ExportService _exportService = ExportService();
+  final FxRateService _fxRates = FxRateService();
+  final Map<String, double> _fxCache = {};
 
   DateTime _selectedMonth = DateTime(DateTime.now().year, DateTime.now().month, 1);
 
@@ -96,6 +100,71 @@ class _ReportsPageState extends State<ReportsPage> {
 
   String _formatLabel(ExportFormat format) =>
       format == ExportFormat.csv ? 'CSV' : 'PDF';
+
+  String _dateKey(DateTime date) {
+    String two(int v) => v.toString().padLeft(2, '0');
+    return '${date.year}-${two(date.month)}-${two(date.day)}';
+  }
+
+  Future<double?> _convertAmount(
+    TransactionModel tx,
+    String baseCurrency,
+  ) async {
+    if (tx.currency == baseCurrency) return tx.amount;
+    if (tx.fxRate != null && tx.fxBaseCurrency == baseCurrency) {
+      return tx.amount * tx.fxRate!;
+    }
+    final date = tx.fxDate ?? tx.date;
+    final key = '${_dateKey(date)}|${tx.currency}|$baseCurrency';
+    final cached = _fxCache[key];
+    if (cached != null) return tx.amount * cached;
+    try {
+      final rate = await _fxRates.getRate(
+        date: date,
+        from: tx.currency,
+        to: baseCurrency,
+      );
+      _fxCache[key] = rate;
+      return tx.amount * rate;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<_ConversionResult> _convertTransactions(
+    List<TransactionModel> txs,
+    String baseCurrency,
+  ) async {
+    final totalsByCurrencyOriginal = <String, double>{};
+    final totalsByCurrencyConverted = <String, double>{};
+    final totalsByCategoryBase = <String, double>{};
+    final totalsByMonthBase = <int, double>{};
+    var missingConversions = 0;
+
+    for (final tx in txs) {
+      totalsByCurrencyOriginal[tx.currency] =
+          (totalsByCurrencyOriginal[tx.currency] ?? 0) + tx.amount;
+      final converted = await _convertAmount(tx, baseCurrency);
+      if (converted == null) {
+        missingConversions++;
+        continue;
+      }
+      totalsByCurrencyConverted[tx.currency] =
+          (totalsByCurrencyConverted[tx.currency] ?? 0) + converted;
+      totalsByCategoryBase[tx.categoryId] =
+          (totalsByCategoryBase[tx.categoryId] ?? 0) + converted;
+      totalsByMonthBase[tx.date.month] =
+          (totalsByMonthBase[tx.date.month] ?? 0) + converted;
+    }
+
+    return _ConversionResult(
+      totalsByCurrencyOriginal: totalsByCurrencyOriginal,
+      totalsByCurrencyConverted: totalsByCurrencyConverted,
+      totalsByCategoryBase: totalsByCategoryBase,
+      totalsByMonthBase: totalsByMonthBase,
+      missingConversions: missingConversions,
+    );
+  }
 
   Future<void> _showExportSheet(Map<String, CategoryModel> categoriesById) async {
     ExportPeriod period = ExportPeriod.month;
@@ -311,238 +380,350 @@ class _ReportsPageState extends State<ReportsPage> {
     final months = List.generate(12, (i) => DateTime(selectedYear, i + 1, 1));
 
     final body = SafeArea(
-      child: StreamBuilder<List<TransactionModel>>(
-        stream: _firestore.streamTransactions(widget.uid, limit: 1),
-        builder: (context, hasTxSnap) {
-          if (hasTxSnap.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
+      child: StreamBuilder<String>(
+        stream: _firestore.streamDefaultCurrency(widget.uid),
+        builder: (context, currencySnap) {
+          final baseCurrency = currencySnap.data ?? defaultCurrencyCode;
+          final baseMeta = currencyOptionByCode(baseCurrency);
+          return StreamBuilder<List<TransactionModel>>(
+            stream: _firestore.streamTransactions(widget.uid, limit: 1),
+            builder: (context, hasTxSnap) {
+              if (hasTxSnap.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
 
-          final hasAnyTransactions = (hasTxSnap.data ?? const <TransactionModel>[]).isNotEmpty;
-          if (!hasAnyTransactions) {
-            // Empty state for new accounts with no reports yet.
-            return Center(
-              child: Card(
-                margin: const EdgeInsets.all(24),
-                child: Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
+              final hasAnyTransactions =
+                  (hasTxSnap.data ?? const <TransactionModel>[]).isNotEmpty;
+              if (!hasAnyTransactions) {
+                // Empty state for new accounts with no reports yet.
+                return Center(
+                  child: Card(
+                    margin: const EdgeInsets.all(24),
+                    child: Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.pie_chart_outline,
+                            size: 40,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            'No reports yet',
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Add expenses to see charts and exports.',
+                            textAlign: TextAlign.center,
+                            style: Theme.of(context).textTheme.bodyMedium,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              }
+
+              return StreamBuilder<List<CategoryModel>>(
+                stream: _firestore.streamCategories(widget.uid),
+                builder: (context, catSnap) {
+                  final categories = catSnap.data ?? const <CategoryModel>[];
+                  final byId = <String, CategoryModel>{for (final c in categories) c.id: c};
+
+                  return ListView(
+                    padding: const EdgeInsets.all(16),
                     children: [
-                      Icon(
-                        Icons.pie_chart_outline,
-                        size: 40,
-                        color: Theme.of(context).colorScheme.primary,
+                      MonthYearPicker(
+                        year: _selectedMonth.year,
+                        month: _selectedMonth.month,
+                        onChanged: (value) {
+                          setState(() => _selectedMonth = DateTime(value.year, value.month, 1));
+                        },
                       ),
-                      const SizedBox(height: 12),
-                      Text(
-                        'No reports yet',
-                        style: Theme.of(context).textTheme.titleMedium,
+                      const SizedBox(height: 16),
+                      Text('Export data', style: theme.textTheme.titleMedium),
+                      const SizedBox(height: 8),
+                      Card(
+                        child: ListTile(
+                          leading: const Icon(Icons.file_download),
+                          title: const Text('Export transactions'),
+                          subtitle: const Text('CSV or PDF for month, year, or custom range'),
+                          trailing: FilledButton.tonal(
+                            onPressed: () => _showExportSheet(byId),
+                            child: const Text('Export'),
+                          ),
+                        ),
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 24),
                       Text(
-                        'Add expenses to see charts and exports.',
-                        textAlign: TextAlign.center,
-                        style: Theme.of(context).textTheme.bodyMedium,
+                        'Spending by category (${_monthLabel(_selectedMonth.month)} $selectedYear)',
+                        style: theme.textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 8),
+                      StreamBuilder<List<TransactionModel>>(
+                        stream: _firestore.streamTransactions(
+                          widget.uid,
+                          start: monthStart,
+                          end: monthEnd,
+                        ),
+                        builder: (context, txSnap) {
+                          if (txSnap.connectionState == ConnectionState.waiting) {
+                            return const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 24),
+                              child: Center(child: CircularProgressIndicator()),
+                            );
+                          }
+
+                          final txs = txSnap.data ?? const <TransactionModel>[];
+                          return FutureBuilder<_ConversionResult>(
+                            future: _convertTransactions(txs, baseCurrency),
+                            builder: (context, convertedSnap) {
+                              if (!convertedSnap.hasData) {
+                                return const Padding(
+                                  padding: EdgeInsets.symmetric(vertical: 24),
+                                  child: Center(child: CircularProgressIndicator()),
+                                );
+                              }
+
+                              final conversion = convertedSnap.data!;
+                              final totals = conversion.totalsByCategoryBase;
+                              final entries = totals.entries.toList()
+                                ..sort((a, b) => b.value.compareTo(a.value));
+
+                              if (entries.isEmpty) {
+                                return const Padding(
+                                  padding: EdgeInsets.symmetric(vertical: 24),
+                                  child: Center(child: Text('No data for this range.')),
+                                );
+                              }
+
+                              final sections = <SpendingPieSection>[];
+                              for (var i = 0; i < entries.length; i++) {
+                                final entry = entries[i];
+                                final cat = byId[entry.key];
+                                final label =
+                                    cat == null ? 'Unknown' : '${cat.icon ?? '🏷️'}  ${cat.name}';
+                                final color = cat?.color != null
+                                    ? Color(cat!.color!)
+                                    : palette[i % palette.length];
+                                sections.add(
+                                  SpendingPieSection(
+                                    label: label,
+                                    value: entry.value,
+                                    color: color,
+                                  ),
+                                );
+                              }
+
+                              final currencyTotals = conversion.totalsByCurrencyOriginal.entries
+                                  .toList()
+                                ..sort((a, b) => a.key.compareTo(b.key));
+                              final convertedTotals =
+                                  conversion.totalsByCurrencyConverted.entries.toList()
+                                    ..sort((a, b) => a.key.compareTo(b.key));
+                              final convertedSum = convertedTotals.fold<double>(
+                                0,
+                                (sum, entry) => sum + entry.value,
+                              );
+
+                              return Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  Card(
+                                    elevation: 0,
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(12),
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'Totals by currency',
+                                            style: theme.textTheme.titleSmall,
+                                          ),
+                                          const SizedBox(height: 8),
+                                          ...currencyTotals.map((entry) {
+                                            final meta = currencyOptionByCode(entry.key);
+                                            return Padding(
+                                              padding: const EdgeInsets.only(bottom: 4),
+                                              child: Text(
+                                                '${meta.symbol} ${entry.value.toStringAsFixed(2)} (${entry.key})',
+                                              ),
+                                            );
+                                          }),
+                                          const SizedBox(height: 8),
+                                          Text(
+                                            'Converted totals (${baseMeta.code})',
+                                            style: theme.textTheme.titleSmall,
+                                          ),
+                                          const SizedBox(height: 8),
+                                          ...convertedTotals.map((entry) {
+                                            return Padding(
+                                              padding: const EdgeInsets.only(bottom: 4),
+                                              child: Text(
+                                                '${baseMeta.symbol} ${entry.value.toStringAsFixed(2)} (${entry.key} → ${baseMeta.code})',
+                                              ),
+                                            );
+                                          }),
+                                          const Divider(height: 16),
+                                          Text(
+                                            'Total: ${baseMeta.symbol} ${convertedSum.toStringAsFixed(2)}',
+                                            textAlign: TextAlign.right,
+                                          ),
+                                          if (conversion.missingConversions > 0)
+                                            Padding(
+                                              padding: const EdgeInsets.only(top: 8),
+                                              child: Text(
+                                                '${conversion.missingConversions} transactions could not be converted.',
+                                                style: theme.textTheme.bodySmall,
+                                              ),
+                                            ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  SpendingPie(sections: sections),
+                                  const SizedBox(height: 8),
+                                  ...sections.map((s) {
+                                    return ListTile(
+                                      dense: true,
+                                      leading: Container(
+                                        width: 12,
+                                        height: 12,
+                                        decoration: BoxDecoration(
+                                          color: s.color,
+                                          shape: BoxShape.circle,
+                                        ),
+                                      ),
+                                      title: Text(s.label),
+                                      trailing: Text(
+                                        '${baseMeta.symbol} ${s.value.toStringAsFixed(2)}',
+                                      ),
+                                    );
+                                  }),
+                                ],
+                              );
+                            },
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 24),
+                      Text(
+                        'Yearly spendings by month ($selectedYear)',
+                        style: theme.textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 8),
+                      StreamBuilder<List<TransactionModel>>(
+                        stream: _firestore.streamTransactions(
+                          widget.uid,
+                          start: yearStart,
+                          end: yearEnd,
+                        ),
+                        builder: (context, txSnap) {
+                          if (txSnap.connectionState == ConnectionState.waiting) {
+                            return const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 24),
+                              child: Center(child: CircularProgressIndicator()),
+                            );
+                          }
+
+                          final txs = txSnap.data ?? const <TransactionModel>[];
+                          return FutureBuilder<_ConversionResult>(
+                            future: _convertTransactions(txs, baseCurrency),
+                            builder: (context, convertedSnap) {
+                              if (!convertedSnap.hasData) {
+                                return const Padding(
+                                  padding: EdgeInsets.symmetric(vertical: 24),
+                                  child: Center(child: CircularProgressIndicator()),
+                                );
+                              }
+
+                              final conversion = convertedSnap.data!;
+                              final byMonth = conversion.totalsByMonthBase;
+                              final monthLabels = months.map((m) => _monthLabel(m.month)).toList();
+                              final monthValues =
+                                  months.map((m) => byMonth[m.month] ?? 0).toList();
+
+                              final monthEntries = <MapEntry<int, double>>[
+                                for (var m = 1; m <= 12; m++) MapEntry(m, byMonth[m] ?? 0),
+                              ]..removeWhere((e) => e.value <= 0);
+
+                              if (monthEntries.isEmpty) {
+                                return const Padding(
+                                  padding: EdgeInsets.symmetric(vertical: 24),
+                                  child: Center(child: Text('No data for this year.')),
+                                );
+                              }
+
+                              final monthPieSections = <SpendingPieSection>[];
+                              for (var i = 0; i < monthEntries.length; i++) {
+                                final entry = monthEntries[i];
+                                monthPieSections.add(
+                                  SpendingPieSection(
+                                    label: _monthLabel(entry.key),
+                                    value: entry.value,
+                                    color: palette[i % palette.length],
+                                  ),
+                                );
+                              }
+
+                              final yearTotal =
+                                  monthValues.fold<double>(0, (p, v) => p + v);
+
+                              return Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  SpendingPie(sections: monthPieSections),
+                                  const SizedBox(height: 8),
+                                  ...monthPieSections.map((s) {
+                                    return ListTile(
+                                      dense: true,
+                                      leading: Container(
+                                        width: 12,
+                                        height: 12,
+                                        decoration: BoxDecoration(
+                                          color: s.color,
+                                          shape: BoxShape.circle,
+                                        ),
+                                      ),
+                                      title: Text(s.label),
+                                      trailing: Text(
+                                        '${baseMeta.symbol} ${s.value.toStringAsFixed(2)}',
+                                      ),
+                                    );
+                                  }),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    'Monthly totals ($selectedYear)',
+                                    style: theme.textTheme.titleMedium,
+                                  ),
+                                  const SizedBox(height: 8),
+                                  MonthlyBar(labels: monthLabels, values: monthValues),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'Total: ${baseMeta.symbol} ${yearTotal.toStringAsFixed(2)}',
+                                    textAlign: TextAlign.right,
+                                  ),
+                                  if (conversion.missingConversions > 0)
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 8),
+                                      child: Text(
+                                        '${conversion.missingConversions} transactions could not be converted.',
+                                        style: theme.textTheme.bodySmall,
+                                      ),
+                                    ),
+                                ],
+                              );
+                            },
+                          );
+                        },
                       ),
                     ],
-                  ),
-                ),
-              ),
-            );
-          }
-
-          return StreamBuilder<List<CategoryModel>>(
-            stream: _firestore.streamCategories(widget.uid),
-            builder: (context, catSnap) {
-              final categories = catSnap.data ?? const <CategoryModel>[];
-              final byId = <String, CategoryModel>{for (final c in categories) c.id: c};
-
-              return ListView(
-                padding: const EdgeInsets.all(16),
-                children: [
-                  MonthYearPicker(
-                    year: _selectedMonth.year,
-                    month: _selectedMonth.month,
-                    onChanged: (value) {
-                      setState(() => _selectedMonth = DateTime(value.year, value.month, 1));
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  Text('Export data', style: theme.textTheme.titleMedium),
-                  const SizedBox(height: 8),
-                  Card(
-                    child: ListTile(
-                      leading: const Icon(Icons.file_download),
-                      title: const Text('Export transactions'),
-                      subtitle: const Text('CSV or PDF for month, year, or custom range'),
-                      trailing: FilledButton.tonal(
-                        onPressed: () => _showExportSheet(byId),
-                        child: const Text('Export'),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  Text(
-                    'Spending by category (${_monthLabel(_selectedMonth.month)} $selectedYear)',
-                    style: theme.textTheme.titleMedium,
-                  ),
-                  const SizedBox(height: 8),
-                  StreamBuilder<List<TransactionModel>>(
-                    stream: _firestore.streamTransactions(
-                      widget.uid,
-                      start: monthStart,
-                      end: monthEnd,
-                    ),
-                    builder: (context, txSnap) {
-                      if (txSnap.connectionState == ConnectionState.waiting) {
-                        return const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 24),
-                          child: Center(child: CircularProgressIndicator()),
-                        );
-                      }
-
-                      final txs = txSnap.data ?? const <TransactionModel>[];
-                      final totals = <String, double>{};
-                      for (final tx in txs) {
-                        totals[tx.categoryId] = (totals[tx.categoryId] ?? 0) + tx.amount;
-                      }
-
-                      final entries = totals.entries.toList()
-                        ..sort((a, b) => b.value.compareTo(a.value));
-
-                      if (entries.isEmpty) {
-                        return const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 24),
-                          child: Center(child: Text('No data for this range.')),
-                        );
-                      }
-
-                      final sections = <SpendingPieSection>[];
-                      for (var i = 0; i < entries.length; i++) {
-                        final entry = entries[i];
-                        final cat = byId[entry.key];
-                        final label =
-                            cat == null ? 'Unknown' : '${cat.icon ?? '🏷️'}  ${cat.name}';
-                        final color = cat?.color != null
-                            ? Color(cat!.color!)
-                            : palette[i % palette.length];
-                        sections.add(
-                          SpendingPieSection(label: label, value: entry.value, color: color),
-                        );
-                      }
-
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          SpendingPie(sections: sections),
-                          const SizedBox(height: 8),
-                          ...sections.map((s) {
-                            return ListTile(
-                              dense: true,
-                              leading: Container(
-                                width: 12,
-                                height: 12,
-                                decoration: BoxDecoration(
-                                  color: s.color,
-                                  shape: BoxShape.circle,
-                                ),
-                              ),
-                              title: Text(s.label),
-                              trailing: Text('₪ ${s.value.toStringAsFixed(2)}'),
-                            );
-                          }),
-                        ],
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 24),
-                  Text(
-                    'Yearly spendings by month ($selectedYear)',
-                    style: theme.textTheme.titleMedium,
-                  ),
-                  const SizedBox(height: 8),
-                  StreamBuilder<List<TransactionModel>>(
-                    stream: _firestore.streamTransactions(
-                      widget.uid,
-                      start: yearStart,
-                      end: yearEnd,
-                    ),
-                    builder: (context, txSnap) {
-                      if (txSnap.connectionState == ConnectionState.waiting) {
-                        return const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 24),
-                          child: Center(child: CircularProgressIndicator()),
-                        );
-                      }
-
-                      final txs = txSnap.data ?? const <TransactionModel>[];
-                      final byMonth = <int, double>{};
-                      for (final tx in txs) {
-                        if (tx.date.year != selectedYear) continue;
-                        byMonth[tx.date.month] = (byMonth[tx.date.month] ?? 0) + tx.amount;
-                      }
-
-                      final monthLabels = months.map((m) => _monthLabel(m.month)).toList();
-                      final monthValues = months.map((m) => byMonth[m.month] ?? 0).toList();
-
-                      final monthEntries = <MapEntry<int, double>>[
-                        for (var m = 1; m <= 12; m++) MapEntry(m, byMonth[m] ?? 0),
-                      ]..removeWhere((e) => e.value <= 0);
-
-                      if (monthEntries.isEmpty) {
-                        return const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 24),
-                          child: Center(child: Text('No data for this year.')),
-                        );
-                      }
-
-                      final monthPieSections = <SpendingPieSection>[];
-                      for (var i = 0; i < monthEntries.length; i++) {
-                        final entry = monthEntries[i];
-                        monthPieSections.add(
-                          SpendingPieSection(
-                            label: _monthLabel(entry.key),
-                            value: entry.value,
-                            color: palette[i % palette.length],
-                          ),
-                        );
-                      }
-
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          SpendingPie(sections: monthPieSections),
-                          const SizedBox(height: 8),
-                          ...monthPieSections.map((s) {
-                            return ListTile(
-                              dense: true,
-                              leading: Container(
-                                width: 12,
-                                height: 12,
-                                decoration: BoxDecoration(
-                                  color: s.color,
-                                  shape: BoxShape.circle,
-                                ),
-                              ),
-                              title: Text(s.label),
-                              trailing: Text('₪ ${s.value.toStringAsFixed(2)}'),
-                            );
-                          }),
-                          const SizedBox(height: 16),
-                          Text('Monthly totals ($selectedYear)', style: theme.textTheme.titleMedium),
-                          const SizedBox(height: 8),
-                          MonthlyBar(labels: monthLabels, values: monthValues),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Total: ₪ ${monthValues.fold<double>(0, (p, v) => p + v).toStringAsFixed(2)}',
-                            textAlign: TextAlign.right,
-                          ),
-                        ],
-                      );
-                    },
-                  ),
-                ],
+                  );
+                },
               );
             },
           );
@@ -560,4 +741,20 @@ class _ReportsPageState extends State<ReportsPage> {
       body: body,
     );
   }
+}
+
+class _ConversionResult {
+  final Map<String, double> totalsByCurrencyOriginal;
+  final Map<String, double> totalsByCurrencyConverted;
+  final Map<String, double> totalsByCategoryBase;
+  final Map<int, double> totalsByMonthBase;
+  final int missingConversions;
+
+  const _ConversionResult({
+    required this.totalsByCurrencyOriginal,
+    required this.totalsByCurrencyConverted,
+    required this.totalsByCategoryBase,
+    required this.totalsByMonthBase,
+    required this.missingConversions,
+  });
 }
