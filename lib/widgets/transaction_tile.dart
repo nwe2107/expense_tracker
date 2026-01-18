@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/category_model.dart';
 import '../models/transaction_model.dart';
+import '../utils/currency_data.dart';
 
 class TransactionTile extends StatelessWidget {
   final TransactionModel tx;
@@ -25,13 +26,14 @@ class TransactionTile extends StatelessWidget {
     final title = (tx.merchant ?? '').trim().isEmpty ? null : tx.merchant!.trim();
     final categoryLabel = category == null ? 'Unknown category' : category!.name;
     final icon = category?.icon ?? '🏷️';
+    final currency = currencyOptionByCode(tx.currency);
 
     return ListTile(
       leading: CircleAvatar(child: Text(icon)),
       title: Text(title ?? categoryLabel),
       subtitle: Text('${_formatDate(tx.date)} • $categoryLabel'),
       trailing: Text(
-        '₪ ${tx.amount.toStringAsFixed(2)}',
+        '${currency.symbol} ${tx.amount.toStringAsFixed(2)} (${currency.code})',
         style: Theme.of(context).textTheme.titleMedium,
       ),
       onTap: onTap,

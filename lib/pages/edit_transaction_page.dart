@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -5,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../models/category_model.dart';
 import '../models/transaction_model.dart';
+import '../services/fx_rate_service.dart';
 import '../services/firestore_service.dart';
 import '../services/receipt_storage_service.dart';
 import '../utils/currency_data.dart';
@@ -54,6 +56,7 @@ class _EditTransactionPageState extends State<EditTransactionPage> {
   final _formKey = GlobalKey<FormState>();
   final FirestoreService _firestore = FirestoreService();
   final ReceiptStorageService _receiptStorage = ReceiptStorageService();
+  final FxRateService _fxRates = FxRateService();
   final ImagePicker _imagePicker = ImagePicker();
 
   static const List<String> _paymentMethods = [
@@ -291,6 +294,10 @@ class _EditTransactionPageState extends State<EditTransactionPage> {
     final transactionId =
         widget.existing?.id ?? _firestore.newTransactionId(widget.uid);
     var receiptUrl = _receiptUrl;
+    final baseCurrency = await _firestore.fetchDefaultCurrency(widget.uid);
+    double? fxRate;
+    String? fxBaseCurrency;
+    DateTime? fxDate;
 
     if (_receiptFile != null) {
       final bytes = _receiptBytes ?? await _receiptFile!.readAsBytes();
@@ -301,6 +308,35 @@ class _EditTransactionPageState extends State<EditTransactionPage> {
         fileName: _receiptFile!.name,
         mimeType: _receiptFile!.mimeType,
       );
+    }
+
+    if (_currency == baseCurrency) {
+      fxRate = 1.0;
+      fxBaseCurrency = baseCurrency;
+      fxDate = _date;
+    } else {
+      try {
+        fxRate = await _fxRates.getRate(
+          date: _date,
+          from: _currency,
+          to: baseCurrency,
+        );
+        fxBaseCurrency = baseCurrency;
+        fxDate = _date;
+      } catch (e) {
+        if (mounted) {
+          final message = e is FxRateException
+              ? e.message
+              : e is TimeoutException
+                  ? 'FX lookup timed out. Expense saved without FX data.'
+              : e.toString().contains('SocketException')
+                  ? 'No internet connection. Expense saved without FX data.'
+                  : 'FX rate unavailable. Expense saved without FX data.';
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(message)),
+          );
+        }
+      }
     }
 
     final tx = TransactionModel(
@@ -319,6 +355,9 @@ class _EditTransactionPageState extends State<EditTransactionPage> {
       recurringInterval: _recurringEnabled ? _recurringInterval : null,
       recurringParentId: widget.existing?.recurringParentId,
       recurringLastDate: widget.existing?.recurringLastDate,
+      fxRate: fxRate,
+      fxBaseCurrency: fxBaseCurrency,
+      fxDate: fxDate,
     );
 
     try {

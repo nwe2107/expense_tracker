@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../../models/category_model.dart';
 import '../../models/transaction_model.dart';
 import '../../services/firestore_service.dart';
+import '../../utils/currency_data.dart';
 import '../categories_page.dart';
 import '../edit_transaction_page.dart';
 import '../../widgets/transaction_tile.dart';
@@ -33,12 +34,12 @@ class _HomeTabState extends State<HomeTab> {
   DateTime _endOfMonth(DateTime now) =>
       DateTime(now.year, now.month + 1, 1).subtract(const Duration(microseconds: 1));
 
-  double _sumAmounts(List<TransactionModel> txs) {
-    double total = 0;
+  Map<String, double> _totalsByCurrency(List<TransactionModel> txs) {
+    final totals = <String, double>{};
     for (final tx in txs) {
-      total += tx.amount;
+      totals[tx.currency] = (totals[tx.currency] ?? 0) + tx.amount;
     }
-    return total;
+    return totals;
   }
 
   @override
@@ -65,7 +66,10 @@ class _HomeTabState extends State<HomeTab> {
                 end: monthEnd,
               ),
               builder: (context, snapshot) {
-                final total = _sumAmounts(snapshot.data ?? const <TransactionModel>[]);
+                final totals = _totalsByCurrency(
+                  snapshot.data ?? const <TransactionModel>[],
+                );
+                final codes = totals.keys.toList()..sort();
                 return Card(
                   child: Padding(
                     padding: const EdgeInsets.all(16),
@@ -77,10 +81,19 @@ class _HomeTabState extends State<HomeTab> {
                           style: Theme.of(context).textTheme.titleMedium,
                         ),
                         const SizedBox(height: 8),
-                        Text(
-                          '₪ ${total.toStringAsFixed(2)}',
-                          style: Theme.of(context).textTheme.displaySmall,
-                        ),
+                        if (codes.isEmpty)
+                          Text(
+                            'No expenses yet.',
+                            style: Theme.of(context).textTheme.bodyMedium,
+                          )
+                        else
+                          ...codes.map((code) {
+                            final currency = currencyOptionByCode(code);
+                            return Text(
+                              '${currency.symbol} ${totals[code]!.toStringAsFixed(2)} (${currency.code})',
+                              style: Theme.of(context).textTheme.displaySmall,
+                            );
+                          }),
                       ],
                     ),
                   ),

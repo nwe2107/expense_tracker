@@ -18,6 +18,9 @@ class TransactionModel {
   final String? recurringInterval;
   final String? recurringParentId;
   final DateTime? recurringLastDate;
+  final double? fxRate;
+  final String? fxBaseCurrency;
+  final DateTime? fxDate;
 
   const TransactionModel({
     required this.id,
@@ -35,6 +38,9 @@ class TransactionModel {
     this.recurringInterval,
     this.recurringParentId,
     this.recurringLastDate,
+    this.fxRate,
+    this.fxBaseCurrency,
+    this.fxDate,
   });
 
   Map<String, dynamic> toMap() {
@@ -54,6 +60,10 @@ class TransactionModel {
       if (recurringParentId != null) 'recurringParentId': recurringParentId,
       if (recurringEnabled && recurringLastDate != null)
         'recurringLastDate': Timestamp.fromDate(recurringLastDate!),
+      if (fxRate != null) 'fxRate': fxRate,
+      if (fxBaseCurrency != null && fxBaseCurrency!.trim().isNotEmpty)
+        'fxBaseCurrency': fxBaseCurrency,
+      if (fxDate != null) 'fxDate': Timestamp.fromDate(fxDate!),
     };
   }
 
@@ -62,6 +72,7 @@ class TransactionModel {
     final dateTs = data['date'];
     final createdAtTs = data['createdAt'];
     final recurringLastDateTs = data['recurringLastDate'];
+    final fxDateTs = data['fxDate'];
 
     return TransactionModel(
       id: doc.id,
@@ -80,6 +91,9 @@ class TransactionModel {
       recurringParentId: data['recurringParentId'] as String?,
       recurringLastDate:
           recurringLastDateTs is Timestamp ? recurringLastDateTs.toDate() : null,
+      fxRate: (data['fxRate'] as num?)?.toDouble(),
+      fxBaseCurrency: data['fxBaseCurrency'] as String?,
+      fxDate: fxDateTs is Timestamp ? fxDateTs.toDate() : null,
     );
   }
 
@@ -99,6 +113,9 @@ class TransactionModel {
     String? recurringInterval,
     String? recurringParentId,
     DateTime? recurringLastDate,
+    double? fxRate,
+    String? fxBaseCurrency,
+    DateTime? fxDate,
   }) {
     return TransactionModel(
       id: id ?? this.id,
@@ -116,6 +133,9 @@ class TransactionModel {
       recurringInterval: recurringInterval ?? this.recurringInterval,
       recurringParentId: recurringParentId ?? this.recurringParentId,
       recurringLastDate: recurringLastDate ?? this.recurringLastDate,
+      fxRate: fxRate ?? this.fxRate,
+      fxBaseCurrency: fxBaseCurrency ?? this.fxBaseCurrency,
+      fxDate: fxDate ?? this.fxDate,
     );
   }
 }
