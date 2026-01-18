@@ -17,12 +17,16 @@ A modern, feature-rich expense tracking application built with Flutter and Fireb
 - 📅 **Date Range Selection** - View expenses by month and year
 - 💳 **Payment Methods** - Track expenses by payment type (cash, credit, debit, etc.)
 - 🔄 **Real-time Sync** - Cloud-based storage with instant updates
-- 🌍 **Multi-currency Support** - Built-in support for ILS (₪) with extensibility
+- 🌍 **Multi-currency Support** - Pick currencies and view converted totals
+- 🧮 **Default Currency** - Set a baseline currency for reports and totals
 - 📸 **Receipt Photo Uploads** - Attach receipt images to expenses
 - 🧾 **Receipt Scanning (OCR)** - Scan receipts to auto-fill fields
 - 📤 **Export Data** - Generate CSV and PDF expense reports
 - 🌙 **Dark Mode** - Toggle light and dark themes
 - 🔁 **Recurring Expenses** - Automate monthly or yearly entries
+- 🧭 **Tab Navigation** - Quick access across Home, Expenses, Reports, Budgets
+- 🫧 **Empty States** - Helpful placeholders when there is no data yet
+- 🔁 **Report Conversion** - View reports converted to your default currency
 
 ---
 
@@ -60,7 +64,47 @@ View your monthly spending summary and recent transactions at a glance.
 
 ---
 
-### 3. Adding Expenses
+### 3. Tab Navigation
+
+Switch between the app's core areas with a streamlined bottom bar.
+
+<div align="center">
+  <img src="demos/videos/Tabs.gif" alt="Tabs Navigation Demo" width="300"/>
+</div>
+
+---
+
+### 4. Currency Picker
+
+Choose the currency for each expense and totals.
+
+<div align="center">
+  <img src="demos/videos/currency-picker.gif" alt="Currency Picker Demo" width="300"/>
+</div>
+
+---
+
+### 5. Default Currency
+
+Set the baseline currency used in summaries and reports.
+
+<div align="center">
+  <img src="demos/videos/default-currency-picker.gif" alt="Default Currency Demo" width="300"/>
+</div>
+
+---
+
+### 6. Empty State Placeholders
+
+Friendly guidance when there are no expenses yet.
+
+<div align="center">
+  <img src="demos/videos/empty-tab-placeholders.gif" alt="Empty States Demo" width="300"/>
+</div>
+
+---
+
+### 7. Adding Expenses
 
 Easily add new expenses with comprehensive details.
 
@@ -85,7 +129,7 @@ Easily add new expenses with comprehensive details.
 
 ---
 
-### 4. Managing Expenses
+### 8. Managing Expenses
 
 Edit or delete existing expenses with ease.
 
@@ -106,7 +150,7 @@ Edit or delete existing expenses with ease.
 
 ---
 
-### 5. Category Management
+### 9. Category Management
 
 Create and customize your own expense categories.
 
@@ -129,7 +173,7 @@ Create and customize your own expense categories.
 
 ---
 
-### 6. Reports & Analytics
+### 10. Reports & Analytics
 
 Gain insights into your spending patterns with interactive charts.
 
@@ -151,7 +195,17 @@ Gain insights into your spending patterns with interactive charts.
 
 ---
 
-### 7. Receipt Photo Uploads
+### 11. Report Currency Conversion
+
+View analytics with converted totals in your default currency.
+
+<div align="center">
+  <img src="demos/videos/reports-conversion.gif" alt="Reports Conversion Demo" width="300"/>
+</div>
+
+---
+
+### 12. Receipt Photo Uploads
 
 Attach receipt images to keep proof of purchase with each expense.
 
@@ -161,7 +215,7 @@ Attach receipt images to keep proof of purchase with each expense.
 
 ---
 
-### 8. Receipt Scanning (OCR)
+### 13. Receipt Scanning (OCR)
 
 Scan receipts and auto-fill key fields before saving.
 
@@ -171,7 +225,7 @@ Scan receipts and auto-fill key fields before saving.
 
 ---
 
-### 9. Export Data
+### 14. Export Data
 
 Generate CSV or PDF reports for sharing and archiving.
 
@@ -181,7 +235,7 @@ Generate CSV or PDF reports for sharing and archiving.
 
 ---
 
-### 10. Dark Mode
+### 15. Dark Mode
 
 Switch between light and dark themes from settings.
 
@@ -191,7 +245,7 @@ Switch between light and dark themes from settings.
 
 ---
 
-### 11. Recurring Expenses
+### 16. Recurring Expenses
 
 Automatically add monthly or yearly expenses.
 
