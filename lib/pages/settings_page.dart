@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../main.dart';
+import '../pages/categories_page.dart';
 import '../services/firestore_service.dart';
 import '../utils/currency_data.dart';
 
@@ -90,6 +91,28 @@ class SettingsPage extends StatelessWidget {
                     ),
                 ],
               ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.category_outlined),
+              title: const Text('Categories'),
+              subtitle: Text(
+                uid == null
+                    ? 'Sign in to manage categories.'
+                    : 'Add, edit, and organize your categories.',
+              ),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: uid == null
+                  ? null
+                  : () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => CategoriesPage(uid: uid),
+                        ),
+                      );
+                    },
             ),
           ),
           const SizedBox(height: 12),

@@ -5,7 +5,6 @@ import '../../models/category_model.dart';
 import '../../models/transaction_model.dart';
 import '../../services/firestore_service.dart';
 import '../../utils/currency_data.dart';
-import '../categories_page.dart';
 import '../edit_transaction_page.dart';
 import '../../widgets/transaction_tile.dart';
 
@@ -99,25 +98,6 @@ class _HomeTabState extends State<HomeTab> {
                   ),
                 );
               },
-            ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 12,
-              runSpacing: 12,
-              children: [
-                // Keep quick access actions; the global FAB handles adding.
-                FilledButton.tonalIcon(
-                  onPressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => CategoriesPage(uid: user.uid),
-                      ),
-                    );
-                  },
-                  icon: const Icon(Icons.category_outlined),
-                  label: const Text('Categories'),
-                ),
-              ],
             ),
             const SizedBox(height: 16),
             Text(
