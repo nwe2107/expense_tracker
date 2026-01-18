@@ -38,7 +38,36 @@ class ExpensesTab extends StatelessWidget {
 
                 final txs = txSnap.data ?? const <TransactionModel>[];
                 if (txs.isEmpty) {
-                  return const Center(child: Text('No expenses yet. Tap + to add.'));
+                  // Empty state for brand new accounts.
+                  return Center(
+                    child: Card(
+                      margin: const EdgeInsets.all(24),
+                      child: Padding(
+                        padding: const EdgeInsets.all(20),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.receipt_long_outlined,
+                              size: 40,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              'No expenses yet',
+                              style: Theme.of(context).textTheme.titleMedium,
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Tap + to add your first expense.',
+                              textAlign: TextAlign.center,
+                              style: Theme.of(context).textTheme.bodyMedium,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
                 }
 
                 return ListView.separated(
