@@ -45,7 +45,7 @@ class _AppShellState extends State<AppShell> {
           ),
           onPressed: () {
             Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const SettingsPage()),
+              MaterialPageRoute(builder: (_) => SettingsPage()),
             );
           },
         ),

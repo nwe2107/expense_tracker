@@ -1,5 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../utils/currency_data.dart';
+
 class TransactionModel {
   final String id;
   final DateTime date;
@@ -66,7 +68,7 @@ class TransactionModel {
       date: dateTs is Timestamp ? dateTs.toDate() : DateTime.fromMillisecondsSinceEpoch(0),
       createdAt: createdAtTs is Timestamp ? createdAtTs.toDate() : null,
       amount: (data['amount'] as num?)?.toDouble() ?? 0,
-      currency: (data['currency'] as String?) ?? 'ILS',
+      currency: (data['currency'] as String?) ?? defaultCurrencyCode,
       categoryId: (data['categoryId'] as String?) ?? '',
       merchant: data['merchant'] as String?,
       paymentMethod: data['paymentMethod'] as String?,

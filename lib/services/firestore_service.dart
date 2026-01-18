@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../models/category_model.dart';
 import '../models/transaction_model.dart';
+import '../utils/currency_data.dart';
 
 /// Thin Firestore data-access layer using the schema:
 /// `users/{uid}/categories/*` and `users/{uid}/transactions/*`.
@@ -24,6 +25,26 @@ class FirestoreService {
       _userDoc(uid).collection('transactions');
 
   String newTransactionId(String uid) => _transactionsRef(uid).doc().id;
+
+  Stream<String> streamDefaultCurrency(String uid) {
+    return _userDoc(uid).snapshots().map((snap) {
+      final data = snap.data();
+      return (data?['defaultCurrency'] as String?) ?? defaultCurrencyCode;
+    });
+  }
+
+  Future<String> fetchDefaultCurrency(String uid) async {
+    final snap = await _userDoc(uid).get();
+    final data = snap.data();
+    return (data?['defaultCurrency'] as String?) ?? defaultCurrencyCode;
+  }
+
+  Future<void> setDefaultCurrency(String uid, String currency) async {
+    await _userDoc(uid).set(
+      {'defaultCurrency': currency},
+      SetOptions(merge: true),
+    );
+  }
 
   Stream<List<CategoryModel>> streamCategories(String uid) {
     return _categoriesRef(uid)

@@ -7,6 +7,7 @@ import '../models/category_model.dart';
 import '../models/transaction_model.dart';
 import '../services/firestore_service.dart';
 import '../services/receipt_storage_service.dart';
+import '../utils/currency_data.dart';
 import '../widgets/category_picker.dart';
 
 class TransactionPrefill {
@@ -70,6 +71,7 @@ class _EditTransactionPageState extends State<EditTransactionPage> {
 
   DateTime _date = DateTime.now();
   String _categoryId = '';
+  String _currency = defaultCurrencyCode;
   String? _prefillCategoryName;
   String? _paymentMethod;
   bool _splitPurchase = false;
@@ -104,6 +106,7 @@ class _EditTransactionPageState extends State<EditTransactionPage> {
 
     _date = existing?.date ?? prefill?.date ?? DateTime.now();
     _categoryId = existing?.categoryId ?? prefill?.categoryId ?? '';
+    _currency = currencyOptionByCode(existing?.currency ?? defaultCurrencyCode).code;
     _prefillCategoryName = prefill?.categoryName;
     final existingPaymentMethod = existing?.paymentMethod;
     if (existingPaymentMethod != null && _paymentMethods.contains(existingPaymentMethod)) {
@@ -123,6 +126,7 @@ class _EditTransactionPageState extends State<EditTransactionPage> {
     if (existing == null) {
       _receiptFile = prefill?.receiptFile;
       _receiptBytes = prefill?.receiptBytes;
+      _loadDefaultCurrency();
     }
   }
 
@@ -147,6 +151,13 @@ class _EditTransactionPageState extends State<EditTransactionPage> {
       _receiptFile = picked;
       _receiptBytes = bytes;
     });
+  }
+
+  Future<void> _loadDefaultCurrency() async {
+    final currency = await _firestore.fetchDefaultCurrency(widget.uid);
+    if (!mounted) return;
+    if (_isEditMode) return;
+    setState(() => _currency = currencyOptionByCode(currency).code);
   }
 
   Future<void> _chooseReceiptSource() async {
@@ -297,7 +308,7 @@ class _EditTransactionPageState extends State<EditTransactionPage> {
       date: _date,
       createdAt: widget.existing?.createdAt,
       amount: amount,
-      currency: widget.existing?.currency ?? 'ILS',
+      currency: _currency,
       categoryId: _categoryId,
       note: _descriptionController.text.trim(),
       merchant: _merchantController.text.trim(),
@@ -388,6 +399,7 @@ class _EditTransactionPageState extends State<EditTransactionPage> {
           stream: _firestore.streamCategories(widget.uid),
           builder: (context, snapshot) {
             final categories = snapshot.data ?? const <CategoryModel>[];
+            final currencyOption = currencyOptionByCode(_currency);
             if (_categoryId.isEmpty && categories.isNotEmpty) {
               if (_prefillCategoryName != null) {
                 final desired = _normalizeCategoryName(_prefillCategoryName!);
@@ -462,24 +474,57 @@ class _EditTransactionPageState extends State<EditTransactionPage> {
                       },
                     ),
                     const SizedBox(height: 12),
-                    TextFormField(
-                      controller: _amountController,
-                      enabled: !_saving,
-                      decoration: const InputDecoration(
-                        labelText: 'Amount (required)',
-                        prefixText: '₪ ',
-                        border: OutlineInputBorder(),
-                      ),
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
-                      ),
-                      validator: (value) {
-                        final v = value?.trim() ?? '';
-                        if (v.isEmpty) return 'Amount is required.';
-                        final amount = double.tryParse(v);
-                        if (amount == null || amount <= 0) return 'Enter a valid amount.';
-                        return null;
-                      },
+                    Row(
+                      children: [
+                        Expanded(
+                          flex: 3,
+                          child: TextFormField(
+                            controller: _amountController,
+                            enabled: !_saving,
+                            decoration: InputDecoration(
+                              labelText: 'Amount (required)',
+                              prefixText: '${currencyOption.symbol} ',
+                              border: const OutlineInputBorder(),
+                            ),
+                            keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true,
+                            ),
+                            validator: (value) {
+                              final v = value?.trim() ?? '';
+                              if (v.isEmpty) return 'Amount is required.';
+                              final amount = double.tryParse(v);
+                              if (amount == null || amount <= 0) return 'Enter a valid amount.';
+                              return null;
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          flex: 2,
+                          child: DropdownButtonFormField<String>(
+                            value: _currency,
+                            isExpanded: true,
+                            items: currencyOptions
+                                .map(
+                                  (option) => DropdownMenuItem(
+                                    value: option.code,
+                                    child: Text('${option.displayLabel} (${option.symbol})'),
+                                  ),
+                                )
+                                .toList(),
+                            onChanged: _saving
+                                ? null
+                                : (value) {
+                                    if (value == null) return;
+                                    setState(() => _currency = value);
+                                  },
+                            decoration: const InputDecoration(
+                              labelText: 'Currency',
+                              border: OutlineInputBorder(),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
