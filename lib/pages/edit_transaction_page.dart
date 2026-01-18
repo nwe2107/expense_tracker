@@ -453,8 +453,6 @@ class _EditTransactionPageState extends State<EditTransactionPage> {
                 if (match != null) {
                   _categoryId = match.id;
                 }
-              } else {
-                _categoryId = categories.first.id;
               }
             }
 

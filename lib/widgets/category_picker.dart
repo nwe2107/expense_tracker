@@ -46,7 +46,7 @@ class CategoryPicker extends StatelessWidget {
   Widget build(BuildContext context) {
     final selected = _findCategory(value);
     final label =
-        selected == null ? 'Select a category' : '${selected.icon ?? '🏷️'}  ${selected.name}';
+        selected == null ? 'Choose a category' : '${selected.icon ?? '🏷️'}  ${selected.name}';
     final textStyle = Theme.of(context).textTheme.bodyLarge?.copyWith(
           color: enabled ? null : Theme.of(context).disabledColor,
         );
