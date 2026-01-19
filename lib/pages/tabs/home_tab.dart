@@ -33,6 +33,15 @@ class _HomeTabState extends State<HomeTab> {
   DateTime _endOfMonth(DateTime now) =>
       DateTime(now.year, now.month + 1, 1).subtract(const Duration(microseconds: 1));
 
+  Widget _buildDeleteBackground(BuildContext context) {
+    return Container(
+      color: Theme.of(context).colorScheme.error,
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      alignment: Alignment.centerRight,
+      child: const Icon(Icons.delete, color: Colors.white),
+    );
+  }
+
   Map<String, double> _totalsByCurrency(List<TransactionModel> txs) {
     final totals = <String, double>{};
     for (final tx in txs) {
@@ -131,19 +140,31 @@ class _HomeTabState extends State<HomeTab> {
                         separatorBuilder: (context, index) => const Divider(height: 0),
                         itemBuilder: (context, index) {
                           final tx = txs[index];
-                          return TransactionTile(
-                            tx: tx,
-                            category: byId[tx.categoryId],
-                            onTap: () {
-                              Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) => EditTransactionPage(
-                                    uid: user.uid,
-                                    existing: tx,
-                                  ),
-                                ),
+                          return Dismissible(
+                            key: ValueKey(tx.id),
+                            direction: DismissDirection.endToStart,
+                            background: _buildDeleteBackground(context),
+                            onDismissed: (_) async {
+                              await _firestore.deleteTransaction(user.uid, tx.id);
+                              if (!mounted) return;
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Expense deleted')),
                               );
                             },
+                            child: TransactionTile(
+                              tx: tx,
+                              category: byId[tx.categoryId],
+                              onTap: () {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => EditTransactionPage(
+                                      uid: user.uid,
+                                      existing: tx,
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
                           );
                         },
                       );

@@ -10,6 +10,15 @@ import '../edit_transaction_page.dart';
 class ExpensesTab extends StatelessWidget {
   const ExpensesTab({super.key});
 
+  Widget _buildDeleteBackground(BuildContext context) {
+    return Container(
+      color: Theme.of(context).colorScheme.error,
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      alignment: Alignment.centerRight,
+      child: const Icon(Icons.delete, color: Colors.white),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
@@ -75,19 +84,30 @@ class ExpensesTab extends StatelessWidget {
                   separatorBuilder: (context, index) => const Divider(height: 0),
                   itemBuilder: (context, index) {
                     final tx = txs[index];
-                    return TransactionTile(
-                      tx: tx,
-                      category: byId[tx.categoryId],
-                      onTap: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => EditTransactionPage(
-                              uid: user.uid,
-                              existing: tx,
-                            ),
-                          ),
+                    return Dismissible(
+                      key: ValueKey(tx.id),
+                      direction: DismissDirection.endToStart,
+                      background: _buildDeleteBackground(context),
+                      onDismissed: (_) async {
+                        await firestore.deleteTransaction(user.uid, tx.id);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Expense deleted')),
                         );
                       },
+                      child: TransactionTile(
+                        tx: tx,
+                        category: byId[tx.categoryId],
+                        onTap: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => EditTransactionPage(
+                                uid: user.uid,
+                                existing: tx,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
                     );
                   },
                 );
