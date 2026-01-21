@@ -150,7 +150,17 @@ Edit or delete existing expenses with ease.
 
 ---
 
-### 9. Category Management
+### 9. Slide to Delete
+
+Swipe left on any expense to reveal a quick delete action.
+
+<div align="center">
+  <img src="demos/videos/slide-delete.gif" alt="Slide to Delete Demo" width="300"/>
+</div>
+
+---
+
+### 10. Category Management
 
 Create and customize your own expense categories.
 
@@ -173,7 +183,7 @@ Create and customize your own expense categories.
 
 ---
 
-### 10. Reports & Analytics
+### 11. Reports & Analytics
 
 Gain insights into your spending patterns with interactive charts.
 
@@ -195,7 +205,7 @@ Gain insights into your spending patterns with interactive charts.
 
 ---
 
-### 11. Report Currency Conversion
+### 12. Report Currency Conversion
 
 View analytics with converted totals in your default currency.
 
@@ -205,7 +215,7 @@ View analytics with converted totals in your default currency.
 
 ---
 
-### 12. Receipt Photo Uploads
+### 13. Receipt Photo Uploads
 
 Attach receipt images to keep proof of purchase with each expense.
 
@@ -215,7 +225,7 @@ Attach receipt images to keep proof of purchase with each expense.
 
 ---
 
-### 13. Receipt Scanning (OCR)
+### 14. Receipt Scanning (OCR)
 
 Scan receipts and auto-fill key fields before saving.
 
@@ -225,7 +235,7 @@ Scan receipts and auto-fill key fields before saving.
 
 ---
 
-### 14. Export Data
+### 15. Export Data
 
 Generate CSV or PDF reports for sharing and archiving.
 
@@ -235,7 +245,7 @@ Generate CSV or PDF reports for sharing and archiving.
 
 ---
 
-### 15. Dark Mode
+### 16. Dark Mode
 
 Switch between light and dark themes from settings.
 
@@ -245,7 +255,7 @@ Switch between light and dark themes from settings.
 
 ---
 
-### 16. Recurring Expenses
+### 17. Recurring Expenses
 
 Automatically add monthly or yearly expenses.
 
