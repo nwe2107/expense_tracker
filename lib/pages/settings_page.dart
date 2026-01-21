@@ -47,6 +47,75 @@ class SettingsPage extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
+                    'Theme color',
+                    style: theme.textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Pick an accent color for the app.',
+                    style: theme.textTheme.bodySmall,
+                  ),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 12,
+                    runSpacing: 12,
+                    children: [
+                      for (final option in themeController.colorOptions)
+                        Semantics(
+                          button: true,
+                          selected:
+                              option.color == themeController.seedColor,
+                          label: option.label,
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(28),
+                            onTap: () =>
+                                themeController.setSeedColor(option.color),
+                            child: AnimatedContainer(
+                              duration: kThemeAnimationDuration,
+                              padding: const EdgeInsets.all(3),
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: option.color ==
+                                          themeController.seedColor
+                                      ? theme.colorScheme.primary
+                                      : theme.dividerColor,
+                                  width:
+                                      option.color ==
+                                              themeController.seedColor
+                                          ? 3
+                                          : 1,
+                                ),
+                              ),
+                              child: CircleAvatar(
+                                radius: 18,
+                                backgroundColor: option.color,
+                                child: option.color ==
+                                        themeController.seedColor
+                                    ? const Icon(
+                                        Icons.check,
+                                        color: Colors.white,
+                                        size: 18,
+                                      )
+                                    : null,
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
                     'Default currency',
                     style: theme.textTheme.titleMedium,
                   ),

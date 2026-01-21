@@ -11,16 +11,40 @@ Future<void> main() async {
   runApp(const MyApp());
 }
 
+class ThemeColorOption {
+  const ThemeColorOption(this.label, this.color);
+
+  final String label;
+  final Color color;
+}
+
 class ThemeController extends ChangeNotifier {
   ThemeMode _mode = ThemeMode.light;
+  Color _seedColor = Colors.teal;
 
   ThemeMode get mode => _mode;
   bool get isDarkMode => _mode == ThemeMode.dark;
+  Color get seedColor => _seedColor;
+  List<ThemeColorOption> get colorOptions => _colorOptions;
+
+  static const List<ThemeColorOption> _colorOptions = [
+    ThemeColorOption('Teal', Colors.teal),
+    ThemeColorOption('Indigo', Colors.indigo),
+    ThemeColorOption('Purple', Colors.deepPurple),
+    ThemeColorOption('Orange', Colors.deepOrange),
+    ThemeColorOption('Green', Colors.green),
+  ];
 
   void setDarkMode(bool value) {
     final nextMode = value ? ThemeMode.dark : ThemeMode.light;
     if (nextMode == _mode) return;
     _mode = nextMode;
+    notifyListeners();
+  }
+
+  void setSeedColor(Color color) {
+    if (color == _seedColor) return;
+    _seedColor = color;
     notifyListeners();
   }
 }
@@ -73,12 +97,14 @@ class _MyAppState extends State<MyApp> {
             themeMode: _themeController.mode,
             theme: ThemeData(
               useMaterial3: true,
-              colorScheme: ColorScheme.fromSeed(seedColor: Colors.teal),
+              colorScheme: ColorScheme.fromSeed(
+                seedColor: _themeController.seedColor,
+              ),
             ),
             darkTheme: ThemeData(
               useMaterial3: true,
               colorScheme: ColorScheme.fromSeed(
-                seedColor: Colors.teal,
+                seedColor: _themeController.seedColor,
                 brightness: Brightness.dark,
               ),
             ),
