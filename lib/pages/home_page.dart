@@ -1,7 +1,6 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
-import 'settings_page.dart';
+import 'profile_page.dart';
 import 'tabs/home_tab.dart';
 
 class HomePage extends StatelessWidget {
@@ -12,7 +11,7 @@ class HomePage extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
-          tooltip: 'Settings',
+          tooltip: 'Profile',
           icon: CircleAvatar(
             backgroundColor: Theme.of(context).colorScheme.primaryContainer,
             child: Icon(
@@ -22,18 +21,11 @@ class HomePage extends StatelessWidget {
           ),
           onPressed: () {
             Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const SettingsPage()),
+              MaterialPageRoute(builder: (_) => const ProfilePage()),
             );
           },
         ),
         title: const Text('Expense Tracker'),
-        actions: [
-          IconButton(
-            tooltip: 'Logout',
-            icon: const Icon(Icons.logout),
-            onPressed: () => FirebaseAuth.instance.signOut(),
-          ),
-        ],
       ),
       body: const HomeTab(),
     );

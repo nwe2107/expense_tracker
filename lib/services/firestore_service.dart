@@ -65,6 +65,29 @@ class FirestoreService {
     await _categoriesRef(uid).doc(id).delete();
   }
 
+  Future<void> deleteUserData(String uid) async {
+    await _deleteCollection(_categoriesRef(uid));
+    await _deleteCollection(_transactionsRef(uid));
+    await _userDoc(uid).delete();
+  }
+
+  Future<void> _deleteCollection(
+    CollectionReference<Map<String, dynamic>> collection,
+  ) async {
+    const batchSize = 400;
+
+    while (true) {
+      final snapshot = await collection.limit(batchSize).get();
+      if (snapshot.docs.isEmpty) break;
+
+      final batch = _db.batch();
+      for (final doc in snapshot.docs) {
+        batch.delete(doc.reference);
+      }
+      await batch.commit();
+    }
+  }
+
   Stream<List<TransactionModel>> streamTransactions(
     String uid, {
     DateTime? start,

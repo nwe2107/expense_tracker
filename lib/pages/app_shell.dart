@@ -2,7 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import 'add_expense_options_page.dart';
-import 'settings_page.dart';
+import 'profile_page.dart';
 import 'tabs/budgets_tab.dart';
 import 'tabs/expenses_tab.dart';
 import 'tabs/home_tab.dart';
@@ -32,10 +32,9 @@ class _AppShellState extends State<AppShell> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // App bar stays global for all tabs (profile bubble + settings unchanged).
       appBar: AppBar(
         leading: IconButton(
-          tooltip: 'Settings',
+          tooltip: 'Profile',
           icon: CircleAvatar(
             backgroundColor: Theme.of(context).colorScheme.primaryContainer,
             child: Icon(
@@ -45,18 +44,11 @@ class _AppShellState extends State<AppShell> {
           ),
           onPressed: () {
             Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => SettingsPage()),
+              MaterialPageRoute(builder: (_) => const ProfilePage()),
             );
           },
         ),
         title: const Text('Expense Tracker'),
-        actions: [
-          IconButton(
-            tooltip: 'Logout',
-            icon: const Icon(Icons.logout),
-            onPressed: () => FirebaseAuth.instance.signOut(),
-          ),
-        ],
       ),
       body: IndexedStack(
         index: _currentIndex,
