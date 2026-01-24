@@ -1,3 +1,4 @@
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
@@ -89,8 +90,22 @@ class _LoginPageState extends State<LoginPage> {
 
   Future<void> _createAccount() async {
     await _authenticate(
-      action: (email, password) => FirebaseAuth.instance
-          .createUserWithEmailAndPassword(email: email, password: password),
+      action: (email, password) async {
+        final credential = await FirebaseAuth.instance
+            .createUserWithEmailAndPassword(email: email, password: password);
+        try {
+          final functions = FirebaseFunctions.instanceFor(region: 'us-central1');
+          final callable = functions.httpsCallable('queueWelcomeEmail');
+          await callable.call(<String, dynamic>{});
+          debugPrint('Welcome email queued for $email');
+        } on FirebaseFunctionsException catch (error) {
+          debugPrint(
+            'queueWelcomeEmail failed: ${error.code} ${error.message}',
+          );
+        }
+        debugPrint('Account created for $email');
+        return credential;
+      },
     );
   }
 

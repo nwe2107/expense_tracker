@@ -44,6 +44,8 @@ post_install do |installer|
     target.build_configurations.each do |config|
       # Allow arm64 simulators on Apple Silicon.
       config.build_settings['EXCLUDED_ARCHS[sdk=iphonesimulator*]'] = ''
+      # Align all pods to the app's minimum iOS version.
+      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.5'
     end
   end
 end

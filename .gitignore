@@ -64,3 +64,11 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 commands.txt
+
+
+# iOS / macOS generated (Flutter + CocoaPods)
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/ephemeral/
+macos/Pods/
+macos/Flutter/ephemeral/

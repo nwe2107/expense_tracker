@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 
 import '../services/firestore_service.dart';
 import 'settings_page.dart';
@@ -68,11 +69,31 @@ class _ProfilePageState extends State<ProfilePage> {
         return;
       }
 
+      final locale = Localizations.localeOf(context).toLanguageTag();
+      final functions = FirebaseFunctions.instanceFor(region: 'us-central1');
+      final callable =
+          functions.httpsCallable('queueAccountDeletedEmail');
+      await callable.call(<String, dynamic>{'locale': locale});
+      debugPrint('Account deletion email queued for $uid');
+
       await _firestore.deleteUserData(uid);
       await user?.delete();
       if (mounted) {
         Navigator.of(context, rootNavigator: true)
             .popUntil((route) => route.isFirst);
+      }
+    } on FirebaseFunctionsException catch (error) {
+      debugPrint(
+        'queueAccountDeletedEmail failed: ${error.code} ${error.message}',
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Delete email failed: ${error.message ?? error.code}',
+            ),
+          ),
+        );
       }
     } on FirebaseAuthException catch (error) {
       final message = error.code == 'requires-recent-login'
