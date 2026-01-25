@@ -23,10 +23,14 @@ A modern, feature-rich expense tracking application built with Flutter and Fireb
 - 🧾 **Receipt Scanning (OCR)** - Scan receipts to auto-fill fields
 - 📤 **Export Data** - Generate CSV and PDF expense reports
 - 🌙 **Dark Mode** - Toggle light and dark themes
+- 🎨 **Theme Customization** - Pick an accent color for the app
 - 🔁 **Recurring Expenses** - Automate monthly or yearly entries
 - 🧭 **Tab Navigation** - Quick access across Home, Expenses, Reports, Budgets
 - 🫧 **Empty States** - Helpful placeholders when there is no data yet
 - 🔁 **Report Conversion** - View reports converted to your default currency
+- 🧾 **Expense Scope Filter** - Browse expenses by month in the Expenses tab
+- 👤 **Profile & Settings Hub** - Central place for settings, logout, and account deletion
+- ✉️ **Account Emails** - Welcome and deletion emails via Firebase Cloud Functions
 
 ---
 
@@ -351,6 +355,7 @@ Automatically add monthly or yearly expenses.
 - **Backend:** Firebase
   - Firebase Authentication
   - Cloud Firestore
+  - Cloud Functions (transactional emails)
 - **Charts:** fl_chart
 - **State Management:** StatefulWidget with StreamBuilder
 
