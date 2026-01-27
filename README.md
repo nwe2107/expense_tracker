@@ -18,6 +18,8 @@ A modern, feature-rich expense tracking application built with Flutter and Fireb
 - 💳 **Payment Methods** - Track expenses by payment type (cash, credit, debit, etc.)
 - 🔄 **Real-time Sync** - Cloud-based storage with instant updates
 - 🌍 **Multi-currency Support** - Pick currencies and view converted totals
+- 📱 **Portrait Mode Lock** - Optimized for handheld use with locked portrait orientation
+- ↔️ **Swipe Navigation** - Seamlessly swipe between tabs (Home, Expenses, Reports, Budgets)
 - 🧮 **Default Currency** - Set a baseline currency for reports and totals
 - 📸 **Receipt Photo Uploads** - Attach receipt images to expenses
 - 🧾 **Receipt Scanning (OCR)** - Scan receipts to auto-fill fields (supports auto-crop and perspective correction)
@@ -70,12 +72,18 @@ View your monthly spending summary and recent transactions at a glance.
 ---
 
 ### 3. Tab Navigation
-
-Switch between the app's core areas with a streamlined bottom bar.
+    
+Switch between the app's core areas with a streamlined bottom bar or by swiping left and right.
 
 <div align="center">
   <img src="demos/videos/Tabs.gif" alt="Tabs Navigation Demo" width="300"/>
 </div>
+
+**Features:**
+- 👆 Tap tabs to navigate
+- ↔️ Swipe between tabs for fluid navigation
+- 🔄 State preservation (scroll position kept when switching tabs)
+
 
 ---
 

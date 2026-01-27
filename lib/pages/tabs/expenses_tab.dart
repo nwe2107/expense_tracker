@@ -16,7 +16,7 @@ class ExpensesTab extends StatefulWidget {
   State<ExpensesTab> createState() => _ExpensesTabState();
 }
 
-class _ExpensesTabState extends State<ExpensesTab> {
+class _ExpensesTabState extends State<ExpensesTab> with AutomaticKeepAliveClientMixin {
   late DateTime _selectedMonth;
 
   @override
@@ -30,6 +30,9 @@ class _ExpensesTabState extends State<ExpensesTab> {
 
   DateTime _rangeEnd(DateTime month) =>
       DateTime(month.year, month.month + 1, 0, 23, 59, 59, 999, 999);
+
+  @override
+  bool get wantKeepAlive => true;
 
   Future<bool> _confirmDelete(BuildContext context) async {
     return await showDialog<bool>(
@@ -90,6 +93,7 @@ class _ExpensesTabState extends State<ExpensesTab> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
       return const Center(child: Text('Not signed in'));

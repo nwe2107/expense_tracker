@@ -18,6 +18,19 @@ class AppShell extends StatefulWidget {
 class _AppShellState extends State<AppShell> {
   // Keep the active tab index in state for the bottom navigation.
   int _currentIndex = 0;
+  late final PageController _pageController;
+
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController();
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
 
   void _openAddExpense() {
     final uid = FirebaseAuth.instance.currentUser?.uid;
@@ -50,8 +63,13 @@ class _AppShellState extends State<AppShell> {
         ),
         title: const Text('Expense Tracker'),
       ),
-      body: IndexedStack(
-        index: _currentIndex,
+      body: PageView(
+        controller: _pageController,
+        onPageChanged: (index) {
+          setState(() {
+            _currentIndex = index;
+          });
+        },
         children: const [
           HomeTab(),
           ExpensesTab(),
@@ -73,9 +91,11 @@ class _AppShellState extends State<AppShell> {
         unselectedItemColor: Theme.of(context).colorScheme.onSurfaceVariant,
         backgroundColor: Theme.of(context).colorScheme.surface,
         onTap: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
+          _pageController.animateToPage(
+            index,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOut,
+          );
         },
         items: const [
           BottomNavigationBarItem(

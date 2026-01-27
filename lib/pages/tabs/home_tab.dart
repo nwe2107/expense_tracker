@@ -16,7 +16,7 @@ class HomeTab extends StatefulWidget {
   State<HomeTab> createState() => _HomeTabState();
 }
 
-class _HomeTabState extends State<HomeTab> {
+class _HomeTabState extends State<HomeTab> with AutomaticKeepAliveClientMixin {
   final FirestoreService _firestore = FirestoreService();
 
   @override
@@ -30,6 +30,9 @@ class _HomeTabState extends State<HomeTab> {
       }
     });
   }
+
+  @override
+  bool get wantKeepAlive => true;
 
   DateTime _startOfMonth(DateTime now) => DateTime(now.year, now.month, 1);
 
@@ -102,6 +105,7 @@ class _HomeTabState extends State<HomeTab> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
       return const Center(child: Text('Not signed in'));
