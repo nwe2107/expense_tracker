@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -7,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 
 import 'edit_transaction_page.dart';
 import '../services/vision_ocr_service.dart';
+import '../services/receipt_scan_service.dart';
 
 class ScanExpensePage extends StatefulWidget {
   final String uid;
@@ -20,42 +20,94 @@ class ScanExpensePage extends StatefulWidget {
 class _ScanExpensePageState extends State<ScanExpensePage> {
   final ImagePicker _imagePicker = ImagePicker();
   final VisionOcrService _ocrService = VisionOcrService();
+  final ReceiptScanService _scanService = ReceiptScanService();
 
   XFile? _imageFile;
-  Uint8List? _imageBytes;
   String? _rawText;
   TransactionPrefill? _prefill;
   bool _processing = false;
 
   Future<void> _pickImage(ImageSource source) async {
     if (_processing) return;
-    setState(() => _processing = true);
 
     try {
-      final picked = await _imagePicker.pickImage(
-        source: source,
-        maxWidth: 2400,
-        imageQuality: 90,
-      );
+      XFile? picked;
+      if (source == ImageSource.camera) {
+        // Use document scanner for camera
+        final file = await _scanService.scanReceipt();
+        if (file != null) {
+          picked = XFile(file.path);
+        }
+      } else {
+        // Use standard picker for gallery
+        picked = await _imagePicker.pickImage(
+          source: source,
+          maxWidth: 2400,
+          imageQuality: 90,
+        );
+      }
+
       if (picked == null) return;
-      final bytes = await picked.readAsBytes();
-      final parsed = await _runOcr(picked, bytes);
 
       if (!mounted) return;
       setState(() {
         _imageFile = picked;
-        _imageBytes = bytes;
-        _rawText = parsed.$1;
-        _prefill = parsed.$2;
+        // Reset previous OCR results when a new image is picked
+        _rawText = null;
+        _prefill = null;
       });
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Failed to scan: $e')),
       );
+    }
+  }
+
+  Future<void> _processAndUseScan() async {
+    if (_imageFile == null) return;
+    if (_processing) return;
+
+    // If we already have results (e.g. from a previous run), just use them
+    if (_prefill != null) {
+      _navigateToEdit();
+      return;
+    }
+
+    setState(() => _processing = true);
+
+    try {
+      final bytes = await _imageFile!.readAsBytes();
+      // Use the existing OCR pipeline on the scanned image
+      final parsed = await _runOcr(_imageFile!, bytes);
+
+      if (!mounted) return;
+      setState(() {
+        _rawText = parsed.$1;
+        _prefill = parsed.$2;
+      });
+      
+      _navigateToEdit();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to process receipt: $e')),
+      );
     } finally {
       if (mounted) setState(() => _processing = false);
     }
+  }
+
+  void _navigateToEdit() {
+    final prefill = _prefill;
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => EditTransactionPage(
+          uid: widget.uid,
+          prefill: prefill,
+        ),
+      ),
+    );
   }
 
   Future<(String, TransactionPrefill?)> _runOcr(XFile file, Uint8List bytes) async {
@@ -247,18 +299,6 @@ class _ScanExpensePageState extends State<ScanExpensePage> {
     return DateTime(year, month, day);
   }
 
-  void _useScan() {
-    final prefill = _prefill;
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => EditTransactionPage(
-          uid: widget.uid,
-          prefill: prefill,
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final hasImage = _imageFile != null;
@@ -285,7 +325,7 @@ class _ScanExpensePageState extends State<ScanExpensePage> {
                   aspectRatio: 3 / 4,
                   child: Container(
                     decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.surfaceVariant,
+                      color: Theme.of(context).colorScheme.surfaceContainerHighest,
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(
                         color: Theme.of(context).colorScheme.primary,
@@ -315,6 +355,7 @@ class _ScanExpensePageState extends State<ScanExpensePage> {
                 padding: EdgeInsets.only(bottom: 8),
                 child: CircularProgressIndicator(),
               ),
+            // Show detected fields only if we have run OCR
             if (_prefill != null) ...[
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -358,8 +399,8 @@ class _ScanExpensePageState extends State<ScanExpensePage> {
                 children: [
                   FilledButton.icon(
                     onPressed: _processing ? null : () => _pickImage(ImageSource.camera),
-                    icon: const Icon(Icons.camera_alt_outlined),
-                    label: const Text('Scan with camera'),
+                    icon: const Icon(Icons.document_scanner),
+                    label: Text(hasImage ? 'Retake Scan' : 'Scan with camera'),
                   ),
                   const SizedBox(height: 8),
                   OutlinedButton.icon(
@@ -369,9 +410,9 @@ class _ScanExpensePageState extends State<ScanExpensePage> {
                   ),
                   const SizedBox(height: 8),
                   FilledButton.tonalIcon(
-                    onPressed: _prefill == null ? null : _useScan,
+                    onPressed: (_imageFile == null || _processing) ? null : _processAndUseScan,
                     icon: const Icon(Icons.arrow_forward),
-                    label: const Text('Use this scan'),
+                    label: Text(_prefill == null ? 'Process & Use' : 'Use this scan'),
                   ),
                 ],
               ),

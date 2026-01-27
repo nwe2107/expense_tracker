@@ -137,7 +137,8 @@ class SettingsPage extends StatelessWidget {
                         final current = snapshot.data ?? defaultCurrencyCode;
                         final normalized = currencyOptionByCode(current).code;
                         return DropdownButtonFormField<String>(
-                          value: normalized,
+                          key: ValueKey(normalized),
+                          initialValue: normalized,
                           isExpanded: true,
                           items: currencyOptions
                               .map(

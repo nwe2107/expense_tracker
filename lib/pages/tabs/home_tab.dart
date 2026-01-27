@@ -21,11 +21,13 @@ class _HomeTabState extends State<HomeTab> {
   @override
   void initState() {
     super.initState();
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid != null) {
-      _firestore.ensureDefaultCategories(uid);
-      _firestore.ensureRecurringTransactions(uid);
-    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      if (uid != null) {
+        _firestore.ensureDefaultCategories(uid);
+        _firestore.ensureRecurringTransactions(uid);
+      }
+    });
   }
 
   DateTime _startOfMonth(DateTime now) => DateTime(now.year, now.month, 1);
@@ -146,7 +148,7 @@ class _HomeTabState extends State<HomeTab> {
                             background: _buildDeleteBackground(context),
                             onDismissed: (_) async {
                               await _firestore.deleteTransaction(user.uid, tx.id);
-                              if (!mounted) return;
+                              if (!context.mounted) return;
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(content: Text('Expense deleted')),
                               );

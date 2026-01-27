@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:isolate';
 import 'dart:typed_data';
 
 import 'package:csv/csv.dart';
@@ -12,7 +13,6 @@ import '../models/transaction_model.dart';
 
 class ExportService {
   final DateFormat _dateFormat = DateFormat('yyyy-MM-dd');
-  final DateFormat _dateTimeFormat = DateFormat('yyyy-MM-dd HH:mm');
 
   String formatRangeLabel(DateTime start, DateTime end) {
     return '${_dateFormat.format(start)} - ${_dateFormat.format(end)}';
@@ -25,7 +25,7 @@ class ExportService {
   }) {
     final startLabel = _dateFormat.format(start);
     final endLabel = _dateFormat.format(end);
-    return 'expenses_${startLabel}_to_${endLabel}.$extension';
+    return 'expenses_${startLabel}_to_$endLabel.$extension';
   }
 
   Future<Uint8List> buildCsv({
@@ -34,54 +34,59 @@ class ExportService {
     required DateTime start,
     required DateTime end,
   }) async {
-    final rows = <List<dynamic>>[];
-    final totalsByCurrency = _totalsByCurrency(transactions);
-    final totalsByCategory = _totalsByCategory(transactions, categoriesById);
+    return Isolate.run<Uint8List>(() {
+      final dateFormat = DateFormat('yyyy-MM-dd');
+      final dateTimeFormat = DateFormat('yyyy-MM-dd HH:mm');
 
-    rows.add(['Expense report']);
-    rows.add(['Period', formatRangeLabel(start, end)]);
-    rows.add(['Generated', _dateTimeFormat.format(DateTime.now())]);
-    rows.add(['Transaction count', transactions.length]);
-    for (final entry in totalsByCurrency.entries) {
-      rows.add(['Total', entry.key, _formatAmount(entry.value)]);
-    }
-    rows.add([]);
-    if (totalsByCategory.isNotEmpty) {
-      rows.add(['Totals by category']);
-      rows.add(['Category', 'Total']);
-      for (final entry in totalsByCategory.entries) {
-        rows.add([entry.key, _formatAmount(entry.value)]);
+      final rows = <List<dynamic>>[];
+      final totalsByCurrency = _totalsByCurrency(transactions);
+      final totalsByCategory = _totalsByCategory(transactions, categoriesById);
+
+      rows.add(['Expense report']);
+      rows.add(['Period', '${dateFormat.format(start)} - ${dateFormat.format(end)}']);
+      rows.add(['Generated', dateTimeFormat.format(DateTime.now())]);
+      rows.add(['Transaction count', transactions.length]);
+      for (final entry in totalsByCurrency.entries) {
+        rows.add(['Total', entry.key, _formatAmount(entry.value)]);
       }
       rows.add([]);
-    }
+      if (totalsByCategory.isNotEmpty) {
+        rows.add(['Totals by category']);
+        rows.add(['Category', 'Total']);
+        for (final entry in totalsByCategory.entries) {
+          rows.add([entry.key, _formatAmount(entry.value)]);
+        }
+        rows.add([]);
+      }
 
-    rows.add([
-      'Date',
-      'Category',
-      'Merchant',
-      'Payment method',
-      'Note',
-      'Amount',
-      'Currency',
-      'Receipt URL',
-    ]);
-
-    final sorted = [...transactions]..sort((a, b) => a.date.compareTo(b.date));
-    for (final tx in sorted) {
       rows.add([
-        _dateFormat.format(tx.date),
-        _categoryName(tx, categoriesById),
-        tx.merchant ?? '',
-        tx.paymentMethod ?? '',
-        tx.note ?? '',
-        _formatAmount(tx.amount),
-        tx.currency,
-        tx.receiptUrl ?? '',
+        'Date',
+        'Category',
+        'Merchant',
+        'Payment method',
+        'Note',
+        'Amount',
+        'Currency',
+        'Receipt URL',
       ]);
-    }
 
-    final csv = const ListToCsvConverter().convert(rows);
-    return Uint8List.fromList(utf8.encode(csv));
+      final sorted = [...transactions]..sort((a, b) => a.date.compareTo(b.date));
+      for (final tx in sorted) {
+        rows.add([
+          dateFormat.format(tx.date),
+          _categoryName(tx, categoriesById),
+          tx.merchant ?? '',
+          tx.paymentMethod ?? '',
+          tx.note ?? '',
+          _formatAmount(tx.amount),
+          tx.currency,
+          tx.receiptUrl ?? '',
+        ]);
+      }
+
+      final csv = const ListToCsvConverter().convert(rows);
+      return Uint8List.fromList(utf8.encode(csv));
+    });
   }
 
   Future<Uint8List> buildPdf({
@@ -92,71 +97,76 @@ class ExportService {
   }) async {
     final fontRegular = await PdfGoogleFonts.notoSansHebrewRegular();
     final fontBold = await PdfGoogleFonts.notoSansHebrewBold();
-    final theme = pw.ThemeData.withFont(base: fontRegular, bold: fontBold);
+    
+    return Isolate.run<Uint8List>(() {
+      final dateFormat = DateFormat('yyyy-MM-dd');
+      final dateTimeFormat = DateFormat('yyyy-MM-dd HH:mm');
+      final theme = pw.ThemeData.withFont(base: fontRegular, bold: fontBold);
 
-    final totalsByCurrency = _totalsByCurrency(transactions);
-    final totalsByCategory = _totalsByCategory(transactions, categoriesById);
-    final sorted = [...transactions]..sort((a, b) => a.date.compareTo(b.date));
+      final totalsByCurrency = _totalsByCurrency(transactions);
+      final totalsByCategory = _totalsByCategory(transactions, categoriesById);
+      final sorted = [...transactions]..sort((a, b) => a.date.compareTo(b.date));
 
-    final doc = pw.Document();
-    doc.addPage(
-      pw.MultiPage(
-        pageFormat: PdfPageFormat.a4,
-        theme: theme,
-        build: (context) => [
-          pw.Text(
-            'Expense report',
-            style: pw.TextStyle(font: fontBold, fontSize: 20),
-          ),
-          pw.SizedBox(height: 6),
-          pw.Text('Period: ${formatRangeLabel(start, end)}'),
-          pw.Text('Generated: ${_dateTimeFormat.format(DateTime.now())}'),
-          pw.Text('Transaction count: ${transactions.length}'),
-          pw.SizedBox(height: 10),
-          if (totalsByCurrency.isNotEmpty) ...[
+      final doc = pw.Document();
+      doc.addPage(
+        pw.MultiPage(
+          pageFormat: PdfPageFormat.a4,
+          theme: theme,
+          build: (context) => [
             pw.Text(
-              'Totals by currency',
+              'Expense report',
+              style: pw.TextStyle(font: fontBold, fontSize: 20),
+            ),
+            pw.SizedBox(height: 6),
+            pw.Text('Period: ${dateFormat.format(start)} - ${dateFormat.format(end)}'),
+            pw.Text('Generated: ${dateTimeFormat.format(DateTime.now())}'),
+            pw.Text('Transaction count: ${transactions.length}'),
+            pw.SizedBox(height: 10),
+            if (totalsByCurrency.isNotEmpty) ...[
+              pw.Text(
+                'Totals by currency',
+                style: pw.TextStyle(font: fontBold, fontSize: 12),
+              ),
+              pw.SizedBox(height: 4),
+              pw.TableHelper.fromTextArray(
+                headers: const ['Currency', 'Total'],
+                data: totalsByCurrency.entries
+                    .map((e) => [e.key, _formatAmount(e.value)])
+                    .toList(),
+                headerStyle: pw.TextStyle(font: fontBold, fontSize: 10),
+                cellStyle: const pw.TextStyle(fontSize: 9),
+                cellAlignment: pw.Alignment.centerLeft,
+                headerDecoration: const pw.BoxDecoration(color: PdfColors.grey300),
+              ),
+              pw.SizedBox(height: 8),
+            ],
+            if (totalsByCategory.isNotEmpty) ...[
+              pw.Text(
+                'Totals by category',
+                style: pw.TextStyle(font: fontBold, fontSize: 12),
+              ),
+              pw.SizedBox(height: 4),
+              _categoryTotalsTable(totalsByCategory, fontBold),
+              pw.SizedBox(height: 12),
+            ],
+            pw.Text(
+              'Transactions',
               style: pw.TextStyle(font: fontBold, fontSize: 12),
             ),
             pw.SizedBox(height: 4),
-            pw.Table.fromTextArray(
-              headers: const ['Currency', 'Total'],
-              data: totalsByCurrency.entries
-                  .map((e) => [e.key, _formatAmount(e.value)])
-                  .toList(),
-              headerStyle: pw.TextStyle(font: fontBold, fontSize: 10),
-              cellStyle: const pw.TextStyle(fontSize: 9),
-              cellAlignment: pw.Alignment.centerLeft,
-              headerDecoration: const pw.BoxDecoration(color: PdfColors.grey300),
-            ),
-            pw.SizedBox(height: 8),
+            if (sorted.isEmpty)
+              pw.Text('No transactions in this period.')
+            else
+              _transactionsTable(sorted, categoriesById, fontBold, dateFormat),
           ],
-          if (totalsByCategory.isNotEmpty) ...[
-            pw.Text(
-              'Totals by category',
-              style: pw.TextStyle(font: fontBold, fontSize: 12),
-            ),
-            pw.SizedBox(height: 4),
-            _categoryTotalsTable(totalsByCategory, fontBold),
-            pw.SizedBox(height: 12),
-          ],
-          pw.Text(
-            'Transactions',
-            style: pw.TextStyle(font: fontBold, fontSize: 12),
-          ),
-          pw.SizedBox(height: 4),
-          if (sorted.isEmpty)
-            pw.Text('No transactions in this period.')
-          else
-            _transactionsTable(sorted, categoriesById, fontBold),
-        ],
-      ),
-    );
+        ),
+      );
 
-    return doc.save();
+      return doc.save();
+    });
   }
 
-  Map<String, double> _totalsByCurrency(List<TransactionModel> transactions) {
+  static Map<String, double> _totalsByCurrency(List<TransactionModel> transactions) {
     final totals = <String, double>{};
     for (final tx in transactions) {
       totals[tx.currency] = (totals[tx.currency] ?? 0) + tx.amount;
@@ -166,7 +176,7 @@ class ExportService {
     return {for (final entry in entries) entry.key: entry.value};
   }
 
-  Map<String, double> _totalsByCategory(
+  static Map<String, double> _totalsByCategory(
     List<TransactionModel> transactions,
     Map<String, CategoryModel> categoriesById,
   ) {
@@ -180,16 +190,16 @@ class ExportService {
     return {for (final entry in entries) entry.key: entry.value};
   }
 
-  String _categoryName(TransactionModel tx, Map<String, CategoryModel> categoriesById) {
+  static String _categoryName(TransactionModel tx, Map<String, CategoryModel> categoriesById) {
     final cat = categoriesById[tx.categoryId];
     return cat?.name ?? 'Uncategorized';
   }
 
-  String _formatAmount(double amount) => amount.toStringAsFixed(2);
+  static String _formatAmount(double amount) => amount.toStringAsFixed(2);
 
-  bool _hasHebrew(String value) => RegExp(r'[\u0590-\u05FF]').hasMatch(value);
+  static bool _hasHebrew(String value) => RegExp(r'[\u0590-\u05FF]').hasMatch(value);
 
-  pw.Widget _cellText(
+  static pw.Widget _cellText(
     String value, {
     pw.TextStyle? style,
     bool rtl = false,
@@ -202,14 +212,14 @@ class ExportService {
     );
   }
 
-  pw.Widget _paddedCell(pw.Widget child) {
+  static pw.Widget _paddedCell(pw.Widget child) {
     return pw.Padding(
       padding: const pw.EdgeInsets.symmetric(vertical: 4, horizontal: 6),
       child: child,
     );
   }
 
-  pw.Widget _categoryTotalsTable(
+  static pw.Widget _categoryTotalsTable(
     Map<String, double> totalsByCategory,
     pw.Font fontBold,
   ) {
@@ -261,10 +271,11 @@ class ExportService {
     );
   }
 
-  pw.Widget _transactionsTable(
+  static pw.Widget _transactionsTable(
     List<TransactionModel> transactions,
     Map<String, CategoryModel> categoriesById,
     pw.Font fontBold,
+    DateFormat dateFormat,
   ) {
     return pw.Table(
       border: pw.TableBorder.all(color: PdfColors.grey500, width: 0.6),
@@ -332,7 +343,7 @@ class ExportService {
             children: [
               _paddedCell(
                 _cellText(
-                  _dateFormat.format(tx.date),
+                  dateFormat.format(tx.date),
                   style: const pw.TextStyle(fontSize: 8),
                 ),
               ),

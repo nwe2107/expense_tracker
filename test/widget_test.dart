@@ -40,6 +40,7 @@ void main() {
       MaterialApp(
         home: Scaffold(
           body: CategoryPicker(
+            uid: 'test_uid',
             categories: categories,
             value: 'eating_out',
             enabled: true,

@@ -52,6 +52,7 @@ class _ProfilePageState extends State<ProfilePage> {
     );
 
     if (confirmed != true) return;
+    if (!mounted) return;
 
     setState(() {
       _isDeleting = true;

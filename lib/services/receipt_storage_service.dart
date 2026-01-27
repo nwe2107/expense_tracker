@@ -33,6 +33,15 @@ class ReceiptStorageService {
     return ref.getDownloadURL();
   }
 
+  Future<void> deleteReceipt(String url) async {
+    try {
+      final ref = _storage.refFromURL(url);
+      await ref.delete();
+    } catch (e) {
+      // Ignore if file not found or already deleted
+    }
+  }
+
   String _fileExtension(String fileName) {
     final dot = fileName.lastIndexOf('.');
     if (dot == -1 || dot == fileName.length - 1) return '';

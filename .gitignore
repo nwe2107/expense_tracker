@@ -72,3 +72,6 @@ ios/.symlinks/
 ios/Flutter/ephemeral/
 macos/Pods/
 macos/Flutter/ephemeral/
+
+# Local secrets
+lib/api_key.dart

@@ -1,7 +1,8 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:http/http.dart' as http;
+
+import '../utils/isolate_json.dart';
 
 class FxRateException implements Exception {
   final String message;
@@ -30,7 +31,10 @@ class FxRateService {
       }
       throw FxRateException('FX request failed (${response.statusCode}).');
     }
-    final payload = jsonDecode(response.body) as Map<String, dynamic>;
+    final payload = await parseJsonInIsolate<Map<String, dynamic>>(
+      response.body,
+      (json) => json as Map<String, dynamic>,
+    );
     final rates = payload['rates'] as Map<String, dynamic>?;
     final raw = rates?[to];
     if (raw is num) return raw.toDouble();

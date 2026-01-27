@@ -127,6 +127,7 @@ class _ExpensesTabState extends State<ExpensesTab> {
                             background: _buildDeleteBackground(context),
                             onDismissed: (_) async {
                               await firestore.deleteTransaction(user.uid, tx.id);
+                              if (!context.mounted) return;
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(content: Text('Expense deleted')),
                               );

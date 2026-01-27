@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+// ignore_for_file: deprecated_member_use
 
 import '../charts/monthly_bar.dart';
 import '../charts/spending_pie.dart';
@@ -9,6 +10,7 @@ import '../services/firestore_service.dart';
 import '../services/fx_rate_service.dart';
 import '../utils/currency_data.dart';
 import '../widgets/date_range_picker.dart';
+import '../ui/widgets/loading_overlay.dart';
 import 'package:share_plus/share_plus.dart';
 
 enum ExportPeriod { month, year, custom }
@@ -261,13 +263,18 @@ class _ReportsPageState extends State<ReportsPage> {
 
                       final label = _periodLabel(period, customRange);
                       Navigator.of(context).pop();
-                      await _exportData(
-                        categoriesById,
-                        period,
-                        format,
-                        customRange,
-                        label,
-                      );
+                      LoadingOverlay.show(context, message: 'Exporting...');
+                      try {
+                        await _exportData(
+                          categoriesById,
+                          period,
+                          format,
+                          customRange,
+                          label,
+                        );
+                      } finally {
+                        LoadingOverlay.hide();
+                      }
                     },
                     icon: const Icon(Icons.file_download),
                     label: const Text('Export'),

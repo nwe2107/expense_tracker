@@ -205,6 +205,8 @@ class _EditTransactionPageState extends State<EditTransactionPage> {
               child: Image.network(
                 url,
                 fit: BoxFit.contain,
+                cacheWidth: (MediaQuery.of(context).size.width * MediaQuery.of(context).devicePixelRatio).round(),
+                filterQuality: FilterQuality.low,
                 errorBuilder: (context, error, stackTrace) {
                   return const Padding(
                     padding: EdgeInsets.all(16),
@@ -539,7 +541,8 @@ class _EditTransactionPageState extends State<EditTransactionPage> {
                         Expanded(
                           flex: 2,
                           child: DropdownButtonFormField<String>(
-                            value: _currency,
+                            key: ValueKey(_currency),
+                            initialValue: _currency,
                             isExpanded: true,
                             items: currencyOptions
                                 .map(
@@ -632,6 +635,8 @@ class _EditTransactionPageState extends State<EditTransactionPage> {
                           _receiptUrl!,
                           height: 180,
                           fit: BoxFit.cover,
+                          cacheWidth: (MediaQuery.of(context).size.width * MediaQuery.of(context).devicePixelRatio).round(),
+                          filterQuality: FilterQuality.low,
                           errorBuilder: (context, error, stackTrace) {
                             return const Padding(
                               padding: EdgeInsets.all(12),

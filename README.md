@@ -20,7 +20,7 @@ A modern, feature-rich expense tracking application built with Flutter and Fireb
 - 🌍 **Multi-currency Support** - Pick currencies and view converted totals
 - 🧮 **Default Currency** - Set a baseline currency for reports and totals
 - 📸 **Receipt Photo Uploads** - Attach receipt images to expenses
-- 🧾 **Receipt Scanning (OCR)** - Scan receipts to auto-fill fields
+- 🧾 **Receipt Scanning (OCR)** - Scan receipts to auto-fill fields (supports auto-crop and perspective correction)
 - 📤 **Export Data** - Generate CSV and PDF expense reports
 - 🌙 **Dark Mode** - Toggle light and dark themes
 - 🎨 **Theme Customization** - Pick an accent color for the app
@@ -231,7 +231,10 @@ Attach receipt images to keep proof of purchase with each expense.
 
 ### 14. Receipt Scanning (OCR)
 
-Scan receipts and auto-fill key fields before saving.
+Scan receipts and auto-fill key fields before saving. Now features advanced document scanning with:
+- 📷 Auto-detection of document edges
+- ✂️ Auto-crop and perspective correction
+- 🔍 Cleaner text recognition for better accuracy
 
 <div align="center">
   <img src="demos/videos/OCR- scan.gif" alt="Receipt Scanning Demo" width="300"/>

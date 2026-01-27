@@ -2,18 +2,21 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../models/category_model.dart';
 import '../models/transaction_model.dart';
+import '../services/receipt_storage_service.dart';
 import '../utils/currency_data.dart';
 
 /// Thin Firestore data-access layer using the schema:
 /// `users/{uid}/categories/*` and `users/{uid}/transactions/*`.
 class FirestoreService {
   final FirebaseFirestore _db;
+  final ReceiptStorageService _receiptStorage;
 
   static const int _defaultCategoriesVersion = 3;
   static const _recurringIntervals = {'monthly', 'yearly'};
 
-  FirestoreService({FirebaseFirestore? firestore})
-      : _db = firestore ?? FirebaseFirestore.instance;
+  FirestoreService({FirebaseFirestore? firestore, ReceiptStorageService? receiptStorage})
+      : _db = firestore ?? FirebaseFirestore.instance,
+        _receiptStorage = receiptStorage ?? ReceiptStorageService();
 
   DocumentReference<Map<String, dynamic>> _userDoc(String uid) =>
       _db.collection('users').doc(uid);
@@ -166,7 +169,16 @@ class FirestoreService {
   }
 
   Future<void> deleteTransaction(String uid, String id) async {
-    await _transactionsRef(uid).doc(id).delete();
+    final docRef = _transactionsRef(uid).doc(id);
+    final docSnap = await docRef.get();
+    if (docSnap.exists) {
+      final data = docSnap.data();
+      final receiptUrl = data?['receiptUrl'] as String?;
+      if (receiptUrl != null && receiptUrl.isNotEmpty) {
+        await _receiptStorage.deleteReceipt(receiptUrl);
+      }
+    }
+    await docRef.delete();
   }
 
   Future<void> ensureRecurringTransactions(String uid) async {
