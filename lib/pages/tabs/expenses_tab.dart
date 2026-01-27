@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_slidable/flutter_slidable.dart';
 
 import '../../models/category_model.dart';
 import '../../models/transaction_model.dart';
@@ -30,13 +31,61 @@ class _ExpensesTabState extends State<ExpensesTab> {
   DateTime _rangeEnd(DateTime month) =>
       DateTime(month.year, month.month + 1, 0, 23, 59, 59, 999, 999);
 
-  Widget _buildDeleteBackground(BuildContext context) {
-    return Container(
-      color: Theme.of(context).colorScheme.error,
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      alignment: Alignment.centerRight,
-      child: const Icon(Icons.delete, color: Colors.white),
+  Future<bool> _confirmDelete(BuildContext context) async {
+    return await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Delete Expense'),
+            content: const Text('Are you sure you want to delete this expense?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(false),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(true),
+                child: const Text('Yes'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+  }
+
+  Future<void> _deleteExpense(
+    BuildContext context,
+    TransactionModel tx,
+    FirestoreService firestore,
+    String uid,
+  ) async {
+    // 1. Delete from DB (keep receipt for now)
+    await firestore.deleteTransaction(uid, tx.id, keepReceipt: true);
+
+    if (!context.mounted) return;
+
+    // 2. Show Snackbar
+    ScaffoldMessenger.of(context).clearSnackBars();
+    final controller = ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text('Expense deleted'),
+        action: SnackBarAction(
+          label: 'Undo',
+          onPressed: () {
+            // Restore
+            firestore.addTransactionWithId(uid, tx.id, tx);
+          },
+        ),
+      ),
     );
+
+    // 3. Handle Receipt Cleanup
+    final reason = await controller.closed;
+    if (reason != SnackBarClosedReason.action) {
+      // User didn't undo. Delete receipt if exists.
+      if (tx.receiptUrl != null && tx.receiptUrl!.isNotEmpty) {
+        await firestore.deleteReceipt(tx.receiptUrl!);
+      }
+    }
   }
 
   @override
@@ -121,17 +170,37 @@ class _ExpensesTabState extends State<ExpensesTab> {
                             const Divider(height: 0),
                         itemBuilder: (context, index) {
                           final tx = txs[index];
-                          return Dismissible(
+                          return Slidable(
                             key: ValueKey(tx.id),
-                            direction: DismissDirection.endToStart,
-                            background: _buildDeleteBackground(context),
-                            onDismissed: (_) async {
-                              await firestore.deleteTransaction(user.uid, tx.id);
-                              if (!context.mounted) return;
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Expense deleted')),
-                              );
-                            },
+                            endActionPane: ActionPane(
+                              motion: const ScrollMotion(),
+                              extentRatio: 0.25,
+                              dismissible: DismissiblePane(
+                                onDismissed: () {
+                                  _deleteExpense(context, tx, firestore, user.uid);
+                                },
+                                confirmDismiss: () => _confirmDelete(context),
+                                closeOnCancel: true,
+                              ),
+                              children: [
+                                SlidableAction(
+                                  onPressed: (slidableContext) async {
+                                    final confirmed = await _confirmDelete(context);
+                                    if (confirmed && context.mounted) {
+                                      await _deleteExpense(
+                                        context,
+                                        tx,
+                                        firestore,
+                                        user.uid,
+                                      );
+                                    }
+                                  },
+                                  backgroundColor: Theme.of(context).colorScheme.error,
+                                  foregroundColor: Colors.white,
+                                  icon: Icons.delete,
+                                ),
+                              ],
+                            ),
                             child: TransactionTile(
                               tx: tx,
                               category: byId[tx.categoryId],

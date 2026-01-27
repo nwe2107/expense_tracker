@@ -31,6 +31,7 @@ A modern, feature-rich expense tracking application built with Flutter and Fireb
 - 🧾 **Expense Scope Filter** - Browse expenses by month in the Expenses tab
 - 👤 **Profile & Settings Hub** - Central place for settings, logout, and account deletion
 - ✉️ **Account Emails** - Welcome and deletion emails via Firebase Cloud Functions
+- ↩️ **Undo Deletion** - Restore accidentally deleted expenses with a single tap
 
 ---
 
@@ -154,9 +155,12 @@ Edit or delete existing expenses with ease.
 
 ---
 
-### 9. Slide to Delete
+### 9. Slide to Delete & Undo
 
-Swipe left on any expense to reveal a quick delete action.
+Swipe left on any expense to reveal a delete button. You can partial swipe to reveal the button or full swipe to delete.
+- 🛑 **Confirmation**: A dialog confirms your intent to delete.
+- ↩️ **Undo**: Accidentally deleted? Use the "Undo" action in the snackbar to restore it immediately.
+- 🧹 **Clean UX**: If you cancel deletion, the row resets automatically.
 
 <div align="center">
   <img src="demos/videos/slide-delete.gif" alt="Slide to Delete Demo" width="300"/>

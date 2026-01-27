@@ -168,17 +168,21 @@ class FirestoreService {
     await _transactionsRef(uid).doc(id).update(tx.toMap());
   }
 
-  Future<void> deleteTransaction(String uid, String id) async {
+  Future<void> deleteTransaction(String uid, String id, {bool keepReceipt = false}) async {
     final docRef = _transactionsRef(uid).doc(id);
     final docSnap = await docRef.get();
     if (docSnap.exists) {
       final data = docSnap.data();
       final receiptUrl = data?['receiptUrl'] as String?;
-      if (receiptUrl != null && receiptUrl.isNotEmpty) {
+      if (receiptUrl != null && receiptUrl.isNotEmpty && !keepReceipt) {
         await _receiptStorage.deleteReceipt(receiptUrl);
       }
     }
     await docRef.delete();
+  }
+
+  Future<void> deleteReceipt(String url) async {
+    await _receiptStorage.deleteReceipt(url);
   }
 
   Future<void> ensureRecurringTransactions(String uid) async {

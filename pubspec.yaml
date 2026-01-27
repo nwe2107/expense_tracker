@@ -48,6 +48,7 @@ dependencies:
   intl: ^0.20.2
   http: ^1.6.0
   flutter_doc_scanner: ^0.0.17
+  flutter_slidable: ^4.0.3
 
 dev_dependencies:
   flutter_test:
